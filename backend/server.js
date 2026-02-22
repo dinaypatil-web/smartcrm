@@ -48,6 +48,12 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Catch-all for undefined routes
+app.use((req, res, next) => {
+    console.log(`🚫 Route NOT FOUND: ${req.method} ${req.url}`);
+    res.status(404).json({ error: 'Route not found', path: req.url, method: req.method });
+});
+
 // Error handling
 app.use((err, req, res, next) => {
     console.error(err.stack);
