@@ -1,8 +1,26 @@
 import axios from 'axios';
 
+// Determine API URL based on environment
+const getApiUrl = () => {
+    // If environment variable is set, use it
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+    
+    // In production (Vercel), use your backend URL
+    if (import.meta.env.PROD) {
+        // TODO: Replace with your actual backend URL after deployment
+        return 'https://your-backend-url.railway.app/api';
+    }
+    
+    // In development, use localhost
+    return 'http://localhost:5000/api';
+};
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api',
-    headers: { 'Content-Type': 'application/json' }
+    baseURL: getApiUrl(),
+    headers: { 'Content-Type': 'application/json' },
+    withCredentials: true
 });
 
 // Request interceptor — attach token
