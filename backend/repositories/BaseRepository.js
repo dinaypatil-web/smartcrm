@@ -11,6 +11,18 @@ class BaseRepository {
         return db.collection(this.collectionName);
     }
 
+    _convertTimestamps(obj) {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (typeof obj.toDate === 'function') return obj.toDate();
+        if (Array.isArray(obj)) return obj.map(item => this._convertTimestamps(item));
+
+        const newObj = {};
+        for (const [key, value] of Object.entries(obj)) {
+            newObj[key] = this._convertTimestamps(value);
+        }
+        return newObj;
+    }
+
     async create(data) {
         const collection = this.collection;
         if (!collection) throw new Error('Firestore not initialized');
@@ -27,14 +39,14 @@ class BaseRepository {
         if (!collection) throw new Error('Firestore not initialized');
         const doc = await collection.doc(id).get();
         if (!doc.exists) return null;
-        return { id: doc.id, _id: doc.id, ...doc.data() };
+        return { id: doc.id, _id: doc.id, ...this._convertTimestamps(doc.data()) };
     }
 
     async findAll() {
         const collection = this.collection;
         if (!collection) throw new Error('Firestore not initialized');
         const snapshot = await collection.get();
-        return snapshot.docs.map(doc => ({ id: doc.id, _id: doc.id, ...doc.data() }));
+        return snapshot.docs.map(doc => ({ id: doc.id, _id: doc.id, ...this._convertTimestamps(doc.data()) }));
     }
 
     async findOne(query) {
@@ -47,7 +59,7 @@ class BaseRepository {
         const snapshot = await ref.limit(1).get();
         if (snapshot.empty) return null;
         const doc = snapshot.docs[0];
-        return { id: doc.id, _id: doc.id, ...doc.data() };
+        return { id: doc.id, _id: doc.id, ...this._convertTimestamps(doc.data()) };
     }
 
     async update(id, data) {
