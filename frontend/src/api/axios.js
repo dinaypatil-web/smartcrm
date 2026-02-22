@@ -2,19 +2,25 @@ import axios from 'axios';
 
 // Determine API URL based on environment
 const getApiUrl = () => {
-    // If environment variable is set, use it
-    if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL;
+    let url = import.meta.env.VITE_API_URL;
+
+    // Fallback for production if env is missing
+    if (!url && import.meta.env.PROD) {
+        url = 'https://your-backend-url.up.railway.app/api';
     }
 
-    // In production (Vercel), use your backend URL
-    if (import.meta.env.PROD) {
-        // TODO: Replace with your actual backend URL after deployment
-        return 'https://your-backend-url.up.railway.app/api';
+    // Fallback for development (only if no VITE_API_URL is provided)
+    if (!url) {
+        url = 'http://localhost:5000/api';
     }
 
-    // In development, use localhost
-    return 'http://localhost:5000/api';
+    // SAFETY CHECK: If URL doesn't start with http, browsers treat it as a relative path
+    // which results in URLs like https://vercel-app.com/smartcrm.up.railway.app/...
+    if (url && !url.startsWith('http')) {
+        url = `https://${url}`;
+    }
+
+    return url;
 };
 
 const api = axios.create({
