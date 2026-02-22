@@ -6,13 +6,13 @@ const getApiUrl = () => {
     if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
     }
-    
+
     // In production (Vercel), use your backend URL
     if (import.meta.env.PROD) {
         // TODO: Replace with your actual backend URL after deployment
-        return 'https://your-backend-url.railway.app/api';
+        return 'https://your-backend-url.up.railway.app/api';
     }
-    
+
     // In development, use localhost
     return 'http://localhost:5000/api';
 };
