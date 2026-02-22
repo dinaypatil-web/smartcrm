@@ -12,15 +12,15 @@ app.use(helmet());
 // Debug logging for all requests - MUST BE NEAR THE TOP
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    console.log('Headers:', JSON.stringify(req.headers));
     next();
 });
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
-    : ['http://localhost:5173', 'http://localhost:3000'];
-
-// Explicitly handle preflight requests
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+// Permissive CORS for debugging
+app.use(cors({
+    origin: (origin, callback) => callback(null, true),
+    credentials: true
+}));
 app.options('*', cors());
 
 app.get('/', (req, res) => res.send('Ayurveda ERP Backend is LIVE!'));
