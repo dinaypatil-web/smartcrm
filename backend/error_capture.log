@@ -1,0 +1,15 @@
+[2026-02-22T04:11:32.269Z] PUT /api/purchases/5xzEW2odBElQQOa70rik ERROR: rawPurchaseDate is not defined
+ReferenceError: rawPurchaseDate is not defined
+    at D:\SmartCRM\backend\routes\purchases.js:330:27
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+[2026-02-22T04:11:38.248Z] PUT /api/purchases/5xzEW2odBElQQOa70rik ERROR: rawPurchaseDate is not defined
+ReferenceError: rawPurchaseDate is not defined
+    at D:\SmartCRM\backend\routes\purchases.js:330:27
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+[2026-02-22T04:12:28.379Z] PUT /api/purchases/5xzEW2odBElQQOa70rik ERROR: rawPurchaseDate is not defined
+ReferenceError: rawPurchaseDate is not defined
+    at D:\SmartCRM\backend\routes\purchases.js:330:27
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+

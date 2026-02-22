@@ -1,0 +1,154 @@
+const express = require('express');
+const { InventoryLedgerRepository, ItemRepository, UserRepository } = require('../repositories');
+const auth = require('../middleware/auth');
+const { rbac } = require('../middleware/rbac');
+const { getMonthlyStockSummary } = require('../services/inventoryService');
+const router = express.Router();
+
+// GET /api/inventory - Current stock for all items
+router.get('/', auth, async (req, res) => {
+    try {
+        const { category, itemType, search, lowStockOnly, page = 1, limit = 50 } = req.query;
+        let items = await ItemRepository.findAll();
+
+        items = items.filter(i => i.isActive);
+
+        if (category) items = items.filter(i => i.category === category);
+        if (itemType) items = items.filter(i => i.itemType === itemType);
+        if (search) {
+            const s = search.toLowerCase();
+            items = items.filter(i =>
+                (i.itemName && i.itemName.toLowerCase().includes(s)) ||
+                (i.itemCode && i.itemCode.toLowerCase().includes(s)) ||
+                (i.barcodeNumber && i.barcodeNumber.toLowerCase().includes(s))
+            );
+        }
+        if (lowStockOnly === 'true') {
+            items = items.filter(i => (i.currentStock || 0) <= (i.lowStockLevel || 0));
+        }
+
+        items.sort((a, b) => (a.itemName || '').localeCompare(b.itemName || ''));
+
+        const total = items.length;
+        const paged = items.slice((page - 1) * limit, page * limit);
+
+        const result = paged.map(i => ({
+            id: i.id,
+            itemName: i.itemName,
+            itemCode: i.itemCode,
+            barcodeNumber: i.barcodeNumber,
+            category: i.category,
+            itemType: i.itemType,
+            currentStock: i.currentStock,
+            lowStockLevel: i.lowStockLevel,
+            unitOfMeasure: i.unitOfMeasure,
+            sellingPrice: i.sellingPrice,
+            mrp: i.mrp,
+            purchasePrice: i.purchasePrice
+        }));
+
+        res.json({ items: result, total, page: parseInt(page), pages: Math.ceil(total / limit) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/inventory/ledger/:itemId - Inventory ledger for specific item
+router.get('/ledger/:itemId', auth, rbac('developer', 'admin', 'store'), async (req, res) => {
+    try {
+        const { startDate, endDate, page = 1, limit = 50 } = req.query;
+        let ledger = await InventoryLedgerRepository.findAll();
+
+        ledger = ledger.filter(l => l.item === req.params.itemId);
+
+        if (startDate || endDate) {
+            ledger = ledger.filter(l => {
+                const d = new Date(l.createdAt);
+                if (startDate && d < new Date(startDate)) return false;
+                if (endDate && d > new Date(endDate)) return false;
+                return true;
+            });
+        }
+
+        ledger.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        const total = ledger.length;
+        const paged = ledger.slice((page - 1) * limit, page * limit);
+
+        for (let l of paged) {
+            if (l.createdBy) {
+                const user = await UserRepository.findById(l.createdBy);
+                l.createdBy = user ? { name: user.name } : null;
+            }
+        }
+
+        res.json({ ledger: paged, total, page: parseInt(page), pages: Math.ceil(total / limit) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/inventory/monthly-summary
+router.get('/monthly-summary', auth, rbac('developer', 'admin', 'store'), async (req, res) => {
+    try {
+        const { year, month, itemId, category } = req.query;
+
+        if (!year || !month) {
+            return res.status(400).json({ error: 'Year and month are required' });
+        }
+
+        let items;
+        if (itemId) {
+            items = [await ItemRepository.findById(itemId)];
+        } else {
+            items = await ItemRepository.findAll();
+            items = items.filter(i => i.isActive);
+            if (category) items = items.filter(i => i.category === category);
+        }
+
+        const summaries = [];
+        for (const item of items) {
+            if (!item) continue;
+            const summary = await getMonthlyStockSummary(item.id, parseInt(year), parseInt(month));
+            summaries.push({
+                item: {
+                    id: item.id,
+                    itemName: item.itemName,
+                    itemCode: item.itemCode,
+                    barcodeNumber: item.barcodeNumber,
+                    category: item.category
+                },
+                ...summary
+            });
+        }
+
+        res.json({ year: parseInt(year), month: parseInt(month), summaries });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/inventory/valuation
+router.get('/valuation', auth, rbac('developer', 'admin'), async (req, res) => {
+    try {
+        let items = await ItemRepository.findAll();
+        items = items.filter(i => i.isActive && (i.currentStock || 0) > 0);
+
+        const valuation = items.map(item => ({
+            ...item,
+            costValue: parseFloat(((item.currentStock || 0) * (item.purchasePrice || 0)).toFixed(2)),
+            sellingValue: parseFloat(((item.currentStock || 0) * (item.sellingPrice || 0)).toFixed(2)),
+            mrpValue: parseFloat(((item.currentStock || 0) * (item.mrp || 0)).toFixed(2))
+        }));
+
+        const totalCostValue = valuation.reduce((sum, v) => sum + v.costValue, 0);
+        const totalSellingValue = valuation.reduce((sum, v) => sum + v.sellingValue, 0);
+        const totalMRPValue = valuation.reduce((sum, v) => sum + v.mrpValue, 0);
+
+        res.json({ items: valuation, totalCostValue, totalSellingValue, totalMRPValue });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+module.exports = router;
