@@ -52,9 +52,28 @@ export default function PrescriptionsList() {
         }
     };
 
+    const [history, setHistory] = useState([]);
+
+    const fetchHistory = async (pNumber) => {
+        try {
+            const { data: historyData } = await api.get(`/appointments/history/${pNumber}`);
+            const validHistory = historyData.filter(h => h.id !== selectedId);
+
+            // Enrich with diagnoses
+            const enriched = await Promise.all(validHistory.map(async h => {
+                try {
+                    const { data: pRes } = await api.get(`/prescriptions?appointmentId=${h.id}`);
+                    return { ...h, diagnosis: pRes.prescriptions?.[0]?.diagnosis || 'No prescription recorded' };
+                } catch { return { ...h, diagnosis: 'N/A' }; }
+            }));
+            setHistory(enriched);
+        } catch (err) { console.error('History load failed'); }
+    };
+
     const handleSelect = async (appt) => {
         setSelectedId(appt.id);
         setIsEditing(false);
+        fetchHistory(appt.patientNumber);
         if (appt.status === 'completed') {
             try {
                 const { data } = await api.get(`/prescriptions?appointmentId=${appt.id}`);
@@ -211,12 +230,24 @@ export default function PrescriptionsList() {
                                         <div><label>Height</label><div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedAppt?.height ? `${selectedAppt.height}cm` : '—'}</div></div>
                                     </div>
                                 </div>
-                                <div className="card" style={{ background: 'var(--bg-elevated)' }}>
-                                    <h4 style={{ marginBottom: '16px' }}>Patient Info</h4>
-                                    <div className="grid grid-3">
-                                        <div><label>Age</label><div>{selectedAppt?.age} years</div></div>
-                                        <div><label>Gender</label><div>{selectedAppt?.gender}</div></div>
-                                        <div><label>Phone</label><div>{selectedAppt?.phone || '—'}</div></div>
+                                <div className="card" style={{ background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column' }}>
+                                    <h4 style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}><FiClock color="var(--accent)" /> Medical History</h4>
+                                    <div style={{ flex: 1, overflowY: 'auto', maxHeight: '120px' }}>
+                                        {history.length === 0 ? (
+                                            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>First time visiting</p>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                {history.map(h => (
+                                                    <div key={h.id} style={{ fontSize: '11px', borderLeft: '2px solid var(--border)', paddingLeft: '8px' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                            <div style={{ fontWeight: 600 }}>{new Date(h.appointmentDate).toLocaleDateString()}</div>
+                                                            <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>BP: {h.bloodPressure}</div>
+                                                        </div>
+                                                        <div style={{ color: 'var(--text-primary)', marginTop: '2px' }}><strong>Dx:</strong> {h.diagnosis}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -329,5 +360,13 @@ export default function PrescriptionsList() {
                 <PrescriptionPrint ref={componentRef} data={printData} />
             </div>
         </div>
+    );
+}
+
+{/* Hidden component for printing */ }
+<div style={{ display: 'none' }}>
+    <PrescriptionPrint ref={componentRef} data={printData} />
+</div>
+        </div >
     );
 }
