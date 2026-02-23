@@ -12,6 +12,7 @@ import POSTerminal from './pages/pos/POSTerminal';
 import InventoryList from './pages/inventory/InventoryList';
 import ProductionList from './pages/production/ProductionList';
 import PrescriptionsList from './pages/prescriptions/PrescriptionsList';
+import AppointmentList from './pages/appointments/AppointmentList';
 import Reports from './pages/reports/Reports';
 import UsersList from './pages/users/UsersList';
 import EntitiesList from './pages/entities/EntitiesList';
@@ -51,6 +52,7 @@ export default function App() {
                 <Route path="inventory" element={<ProtectedRoute roles={['admin', 'store']}><InventoryList /></ProtectedRoute>} />
                 <Route path="production" element={<ProtectedRoute roles={['admin']}><ProductionList /></ProtectedRoute>} />
                 <Route path="prescriptions" element={<ProtectedRoute roles={['admin', 'doctor']}><PrescriptionsList /></ProtectedRoute>} />
+                <Route path="appointments" element={<ProtectedRoute roles={['admin', 'doctor', 'attendant']}><AppointmentList /></ProtectedRoute>} />
                 <Route path="reports" element={<ProtectedRoute roles={['admin']}><Reports /></ProtectedRoute>} />
                 <Route path="users" element={<ProtectedRoute roles={['admin']}><UsersList /></ProtectedRoute>} />
             </Route>

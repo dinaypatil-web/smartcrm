@@ -7,6 +7,7 @@ const NotificationRepository = require('./NotificationRepository');
 const InventoryLedgerRepository = require('./InventoryLedgerRepository');
 const PrescriptionRepository = require('./PrescriptionRepository');
 const ProductionRepository = require('./ProductionRepository');
+const AppointmentRepository = require('./AppointmentRepository');
 const AuditLogRepository = require('./AuditLogRepository');
 
 module.exports = {
@@ -19,5 +20,6 @@ module.exports = {
     InventoryLedgerRepository,
     PrescriptionRepository,
     ProductionRepository,
+    AppointmentRepository,
     AuditLogRepository,
 };

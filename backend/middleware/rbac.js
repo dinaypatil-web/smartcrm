@@ -14,6 +14,10 @@ const rolePermissions = {
     store: {
         routes: ['dashboard', 'items', 'purchases', 'sales', 'inventory', 'pos', 'notifications', 'profile'],
         actions: ['read', 'create', 'update']
+    },
+    attendant: {
+        routes: ['dashboard', 'appointments', 'profile'],
+        actions: ['read', 'create', 'update']
     }
 };
 

@@ -1,0 +1,261 @@
+import { useState, useEffect } from 'react';
+import api from '../../api/axios';
+import toast from 'react-hot-toast';
+import { FiPlus, FiSearch, FiClock, FiUser, FiCalendar, FiActivity, FiClipboard } from 'react-icons/fi';
+
+export default function AppointmentList() {
+    const [appointments, setAppointments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [history, setHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
+    const [form, setForm] = useState({
+        patientName: '',
+        age: '',
+        gender: 'Male',
+        weight: '',
+        height: '',
+        bloodPressure: '',
+        bodyTemperature: '',
+        purposeOfVisit: '',
+        appointmentDate: new Date().toISOString().split('T')[0],
+        appointmentTime: '10:00'
+    });
+
+    useEffect(() => {
+        fetchAppointments();
+    }, [page, search]);
+
+    const fetchAppointments = async () => {
+        try {
+            setLoading(true);
+            const { data } = await api.get(`/appointments?patientName=${search}&page=${page}&limit=10`);
+            setAppointments(data.appointments);
+            setTotalPages(data.pages);
+        } catch (err) {
+            toast.error('Failed to load appointments');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchHistory = async (patientNumber) => {
+        try {
+            setHistoryLoading(true);
+            const { data } = await api.get(`/appointments/history/${patientNumber}`);
+            setHistory(data);
+            setShowHistory(true);
+        } catch (err) {
+            toast.error('Failed to load patient history');
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/appointments', form);
+            toast.success('Appointment created successfully');
+            setShowModal(false);
+            setForm({
+                patientName: '', age: '', gender: 'Male', weight: '', height: '',
+                bloodPressure: '', bodyTemperature: '', purposeOfVisit: '',
+                appointmentDate: new Date().toISOString().split('T')[0], appointmentTime: '10:00'
+            });
+            fetchAppointments();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to create appointment');
+        }
+    };
+
+    return (
+        <div className="fade-in">
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">📅 Appointments</h1>
+                    <p className="page-subtitle">Manage patient visits and records</p>
+                </div>
+                <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                    <FiPlus /> New Appointment
+                </button>
+            </div>
+
+            <div className="card" style={{ marginBottom: '16px' }}>
+                <div style={{ position: 'relative' }}>
+                    <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                        className="form-input"
+                        placeholder="Search by patient name..."
+                        style={{ paddingLeft: '36px' }}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="card">
+                <div className="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Details</th>
+                                <th>Schedule</th>
+                                <th>Purpose</th>
+                                <th>Vitals (Last)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {appointments.map((a) => (
+                                <tr key={a.id}>
+                                    <td>
+                                        <div style={{ fontWeight: 600 }}>{a.patientName}</div>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{a.patientNumber}</div>
+                                    </td>
+                                    <td>
+                                        <div style={{ fontSize: '12px' }}>{a.age}y | {a.gender}</div>
+                                    </td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                                            <FiCalendar size={12} /> {new Date(a.appointmentDate).toLocaleDateString('en-IN')}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                            <FiClock size={12} /> {a.appointmentTime}
+                                        </div>
+                                    </td>
+                                    <td style={{ fontSize: '12px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {a.purposeOfVisit}
+                                    </td>
+                                    <td>
+                                        <div style={{ fontSize: '11px' }}>BP: {a.bloodPressure} | Temp: {a.bodyTemperature}°C</div>
+                                        <div style={{ fontSize: '11px' }}>Wt: {a.weight}kg | Ht: {a.height}cm</div>
+                                    </td>
+                                    <td>
+                                        <button className="btn btn-sm" onClick={() => fetchHistory(a.patientNumber)}>
+                                            <FiClipboard size={14} /> History
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {!loading && appointments.length === 0 && (
+                                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No appointments found</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Pagination would go here */}
+
+            {/* New Appointment Modal */}
+            {showModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{ maxWidth: '600px' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">New Patient Appointment</h2>
+                            <button className="btn-close" onClick={() => setShowModal(false)}>×</button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="modal-body">
+                            <div className="grid grid-2">
+                                <div className="form-group">
+                                    <label className="form-label">Patient Name</label>
+                                    <input required className="form-input" value={form.patientName} onChange={e => setForm({ ...form, patientName: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Purpose of Visit</label>
+                                    <input required className="form-input" value={form.purposeOfVisit} onChange={e => setForm({ ...form, purposeOfVisit: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="grid grid-3">
+                                <div className="form-group">
+                                    <label className="form-label">Age</label>
+                                    <input type="number" className="form-input" value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Gender</label>
+                                    <select className="form-input" value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })}>
+                                        <option>Male</option><option>Female</option><option>Other</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Date</label>
+                                    <input type="date" className="form-input" value={form.appointmentDate} onChange={e => setForm({ ...form, appointmentDate: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="grid grid-4">
+                                <div className="form-group">
+                                    <label className="form-label">Weight (kg)</label>
+                                    <input className="form-input" value={form.weight} onChange={e => setForm({ ...form, weight: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Height (cm)</label>
+                                    <input className="form-input" value={form.height} onChange={e => setForm({ ...form, height: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">BP (mmHg)</label>
+                                    <input className="form-input" value={form.bloodPressure} onChange={e => setForm({ ...form, bloodPressure: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Temp (°C)</label>
+                                    <input className="form-input" value={form.bodyTemperature} onChange={e => setForm({ ...form, bodyTemperature: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Appointment Time</label>
+                                <input type="time" className="form-input" value={form.appointmentTime} onChange={e => setForm({ ...form, appointmentTime: e.target.value })} />
+                            </div>
+                            <div className="modal-footer" style={{ marginTop: '16px' }}>
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary">Save Appointment</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* History Modal */}
+            {showHistory && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{ maxWidth: '800px' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Patient History: {history[0]?.patientName} ({history[0]?.patientNumber})</h2>
+                            <button className="btn-close" onClick={() => setShowHistory(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="table-container" style={{ maxHeight: '400px' }}>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th><th>Purpose</th><th>Vitals</th><th>Created By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {history.map((h) => (
+                                            <tr key={h.id}>
+                                                <td style={{ fontSize: '12px' }}>{new Date(h.appointmentDate).toLocaleDateString()} {h.appointmentTime}</td>
+                                                <td style={{ fontSize: '12px' }}>{h.purposeOfVisit}</td>
+                                                <td style={{ fontSize: '11px' }}>
+                                                    BP: {h.bloodPressure} | Temp: {h.bodyTemperature}°C<br />
+                                                    Wt: {h.weight}kg | Ht: {h.height}cm
+                                                </td>
+                                                <td style={{ fontSize: '11px' }}>{h.createdBy}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

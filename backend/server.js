@@ -40,6 +40,7 @@ app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/production', require('./routes/production'));
 app.use('/api/prescriptions', require('./routes/prescriptions'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/appointments', require('./routes/appointments'));
 app.use('/api/barcode', require('./routes/barcode'));
 app.use('/api/notifications', require('./routes/notifications'));
 

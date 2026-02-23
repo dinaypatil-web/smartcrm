@@ -3,13 +3,13 @@ import { useAuth } from '../../context/AuthContext';
 import {
     FiGrid, FiShoppingCart, FiPackage, FiTruck, FiDollarSign,
     FiClipboard, FiSettings, FiBarChart2, FiUsers, FiUser,
-    FiActivity, FiFileText, FiLayers
+    FiActivity, FiFileText, FiLayers, FiCalendar
 } from 'react-icons/fi';
 
 const navItems = [
     {
         section: 'Overview', items: [
-            { path: '/', label: 'Dashboard', icon: FiGrid, roles: ['developer', 'admin', 'doctor', 'store'] },
+            { path: '/', label: 'Dashboard', icon: FiGrid, roles: ['developer', 'admin', 'doctor', 'store', 'attendant'] },
         ]
     },
     {
@@ -28,6 +28,7 @@ const navItems = [
     },
     {
         section: 'Operations', items: [
+            { path: '/appointments', label: 'Appointments', icon: FiCalendar, roles: ['developer', 'admin', 'doctor', 'attendant'] },
             { path: '/production', label: 'Production', icon: FiActivity, roles: ['developer', 'admin'] },
             { path: '/prescriptions', label: 'Prescriptions', icon: FiFileText, roles: ['developer', 'admin', 'doctor'] },
         ]
