@@ -1,5 +1,5 @@
 const express = require('express');
-const { PrescriptionRepository, UserRepository, ItemRepository } = require('../repositories');
+const { PrescriptionRepository, UserRepository, ItemRepository, AppointmentRepository } = require('../repositories');
 const auth = require('../middleware/auth');
 const { rbac } = require('../middleware/rbac');
 const router = express.Router();
@@ -16,8 +16,12 @@ async function generatePrescriptionNumber() {
 // GET /api/prescriptions
 router.get('/', auth, rbac('developer', 'admin', 'doctor'), async (req, res) => {
     try {
-        const { startDate, endDate, patient, doctorId, page = 1, limit = 20 } = req.query;
+        const { startDate, endDate, patient, doctorId, appointmentId, page = 1, limit = 20 } = req.query;
         let prescriptions = await PrescriptionRepository.findAll();
+
+        if (appointmentId) {
+            prescriptions = prescriptions.filter(p => p.appointmentId === appointmentId);
+        }
 
         // Doctors can only see their own prescriptions
         if (req.user.role === 'doctor') {

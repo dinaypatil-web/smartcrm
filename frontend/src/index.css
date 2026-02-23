@@ -1,7 +1,84 @@
 /* ═══════════════════════════════════════════════════════
-   AyurERP — Premium Design System
-   Inspired by Stripe, Linear, Notion, Figma
+   Split Panel Layout (Master-Detail)
    ═══════════════════════════════════════════════════════ */
+
+.split-layout {
+  display: flex;
+  height: calc(100vh - var(--header-height) - 64px);
+  gap: 20px;
+  background: var(--bg-root);
+}
+
+.split-sidebar {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.split-sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.split-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.split-main {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.split-main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.patient-card {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.patient-card:hover {
+  background: var(--bg-hover);
+}
+
+.patient-card.active {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+}
+
+.patient-card .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.status-dot.pending {
+  background: var(--warning);
+}
+
+.status-dot.completed {
+  background: var(--success);
+}
 
 :root {
   /* ── Core Palette ── */
