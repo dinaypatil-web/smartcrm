@@ -16,7 +16,25 @@ export default function ProductionList() {
 
     useEffect(() => {
         const fetch = async () => {
-            // ... (fetch logic remains same)
+            try {
+                setLoading(true);
+                const [prodRes, itemsRes] = await Promise.all([
+                    api.get('/production?limit=50'),
+                    api.get('/items?limit=1000&isActive=true')
+                ]);
+                setProductions(prodRes.data.productions);
+
+                const allItems = itemsRes.data.items;
+                // Finished products are those that are NOT JUST 'Raw Material'
+                setItems(allItems.filter(i => i.itemType !== 'Raw Material'));
+                // Raw materials are those that are 'Raw Material' or 'Both'
+                setRawMaterials(allItems.filter(i => i.itemType === 'Raw Material' || i.itemType === 'Both'));
+            } catch (err) {
+                toast.error('Failed to load production data');
+                console.error('Fetch error:', err);
+            } finally {
+                setLoading(false);
+            }
         };
         fetch();
     }, []);
