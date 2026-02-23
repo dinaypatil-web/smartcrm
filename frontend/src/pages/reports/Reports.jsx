@@ -40,16 +40,22 @@ export default function Reports() {
                         setLoading(false);
                         return;
                     }
-                    // First search for the patient to get their number if needed
-                    const { data: appts } = await api.get(`/appointments?patientName=${search}&limit=1`);
-                    if (appts.appointments.length === 0) {
+                    // Try to find by name first, then by number
+                    let q = `/appointments?patientName=${search}&limit=1`;
+                    if (search.startsWith('PAT-')) {
+                        q = `/appointments?patientNumber=${search}&limit=1`;
+                    }
+
+                    const { data: apptRes } = await api.get(q);
+                    if (!apptRes || !apptRes.appointments || apptRes.appointments.length === 0) {
                         toast.error('Patient not found');
                         setLoading(false);
                         return;
                     }
-                    const pNumber = appts.appointments[0].patientNumber;
+                    const patient = apptRes.appointments[0];
+                    const pNumber = patient.patientNumber;
                     res = await api.get(`/appointments/history/${pNumber}`);
-                    setData({ history: res.data, patient: appts.appointments[0] });
+                    setData({ history: res.data, patient: patient });
                     break;
             }
         } catch (err) { toast.error('Failed to load report'); }
