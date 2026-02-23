@@ -186,15 +186,25 @@ export default function Reports() {
                     <h3 className="card-title" style={{ marginBottom: '16px' }}>📝 Patient History: {data.patient?.patientName} ({data.patient?.patientNumber})</h3>
                     <div className="table-container">
                         <table>
-                            <thead><tr><th>Date</th><th>Purpose</th><th>Vitals</th><th>Created By</th></tr></thead>
+                            <thead><tr><th>Date</th><th>Purpose</th><th>Vitals</th><th>Diagnosis</th><th>Medicines</th><th>Created By</th></tr></thead>
                             <tbody>
                                 {data.history?.map(h => (
                                     <tr key={h.id}>
-                                        <td style={{ fontSize: '12px' }}>{new Date(h.appointmentDate).toLocaleDateString()} {h.appointmentTime}</td>
+                                        <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{new Date(h.appointmentDate).toLocaleDateString()} {h.appointmentTime}</td>
                                         <td style={{ fontSize: '12px' }}>{h.purposeOfVisit}</td>
-                                        <td style={{ fontSize: '11px' }}>
+                                        <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
                                             BP: {h.bloodPressure} | Temp: {h.bodyTemperature}°F<br />
                                             Wt: {h.weight}kg | Ht: {h.height}cm
+                                        </td>
+                                        <td style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{h.diagnosis}</td>
+                                        <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                            {h.medicines?.length > 0 ? (
+                                                <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                    {h.medicines.map((m, idx) => (
+                                                        <li key={idx}>{m.medicineName} ({m.dosage})</li>
+                                                    ))}
+                                                </ul>
+                                            ) : 'None'}
                                         </td>
                                         <td style={{ fontSize: '11px' }}>{h.createdBy}</td>
                                     </tr>

@@ -54,19 +54,11 @@ export default function PrescriptionsList() {
 
     const [history, setHistory] = useState([]);
 
+
     const fetchHistory = async (pNumber) => {
         try {
             const { data: historyData } = await api.get(`/appointments/history/${pNumber}`);
-            const validHistory = historyData.filter(h => h.id !== selectedId);
-
-            // Enrich with diagnoses
-            const enriched = await Promise.all(validHistory.map(async h => {
-                try {
-                    const { data: pRes } = await api.get(`/prescriptions?appointmentId=${h.id}`);
-                    return { ...h, diagnosis: pRes.prescriptions?.[0]?.diagnosis || 'No prescription recorded' };
-                } catch { return { ...h, diagnosis: 'N/A' }; }
-            }));
-            setHistory(enriched);
+            setHistory(historyData.filter(h => h.id !== selectedId));
         } catch (err) { console.error('History load failed'); }
     };
 
@@ -238,12 +230,17 @@ export default function PrescriptionsList() {
                                         ) : (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                                 {history.map(h => (
-                                                    <div key={h.id} style={{ fontSize: '11px', borderLeft: '2px solid var(--border)', paddingLeft: '8px' }}>
+                                                    <div key={h.id} style={{ fontSize: '11px', borderLeft: '2px solid var(--border)', paddingLeft: '8px', paddingBottom: '8px' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                                             <div style={{ fontWeight: 600 }}>{new Date(h.appointmentDate).toLocaleDateString()}</div>
                                                             <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>BP: {h.bloodPressure}</div>
                                                         </div>
                                                         <div style={{ color: 'var(--text-primary)', marginTop: '2px' }}><strong>Dx:</strong> {h.diagnosis}</div>
+                                                        {h.medicines?.length > 0 && (
+                                                            <div style={{ color: 'var(--accent)', fontSize: '10px', marginTop: '1px' }}>
+                                                                <strong>Rx:</strong> {h.medicines.map(m => m.medicineName).join(', ')}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>

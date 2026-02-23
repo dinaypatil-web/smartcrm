@@ -1,5 +1,5 @@
 const express = require('express');
-const { AppointmentRepository, UserRepository } = require('../repositories');
+const { AppointmentRepository, UserRepository, PrescriptionRepository } = require('../repositories');
 const auth = require('../middleware/auth');
 const { rbac } = require('../middleware/rbac');
 const router = express.Router();
@@ -57,7 +57,19 @@ router.get('/', auth, rbac('developer', 'admin', 'doctor', 'attendant'), async (
 // GET /api/appointments/history/:patientNumber
 router.get('/history/:patientNumber', auth, rbac('developer', 'admin', 'doctor', 'attendant'), async (req, res) => {
     try {
-        const history = await AppointmentRepository.findByPatientNumber(req.params.patientNumber);
+        const appointments = await AppointmentRepository.findByPatientNumber(req.params.patientNumber);
+
+        // Fetch related prescriptions for each appointment
+        const history = await Promise.all(appointments.map(async (appt) => {
+            const { prescriptions } = await PrescriptionRepository.findAll();
+            const prescription = prescriptions.find(p => p.appointmentId === appt.id);
+            return {
+                ...appt,
+                diagnosis: prescription?.diagnosis || 'No diagnosis recorded',
+                medicines: prescription?.medicines || []
+            };
+        }));
+
         res.json(history);
     } catch (error) {
         res.status(500).json({ error: error.message });
