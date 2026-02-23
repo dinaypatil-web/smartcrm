@@ -362,11 +362,3 @@ export default function PrescriptionsList() {
         </div>
     );
 }
-
-{/* Hidden component for printing */ }
-<div style={{ display: 'none' }}>
-    <PrescriptionPrint ref={componentRef} data={printData} />
-</div>
-        </div >
-    );
-}
