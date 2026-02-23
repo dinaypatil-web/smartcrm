@@ -66,7 +66,7 @@ const PrescriptionPrint = forwardRef(({ data }, ref) => {
                         </div>
                         <div style={{ padding: '10px', background: '#fff', border: '1px solid #eee', borderRadius: '4px' }}>
                             <div style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase' }}>Temperature</div>
-                            <div style={{ fontWeight: 'bold' }}>{data.vitals.bodyTemperature || '—'} <span style={{ fontSize: '10px', fontWeight: 'normal' }}>°C</span></div>
+                            <div style={{ fontWeight: 'bold' }}>{data.vitals.bodyTemperature || '—'} <span style={{ fontSize: '10px', fontWeight: 'normal' }}>°F</span></div>
                         </div>
                         <div style={{ padding: '10px', background: '#fff', border: '1px solid #eee', borderRadius: '4px' }}>
                             <div style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase' }}>Weight</div>

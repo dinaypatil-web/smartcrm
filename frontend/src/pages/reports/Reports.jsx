@@ -187,7 +187,7 @@ export default function Reports() {
                                         <td style={{ fontSize: '12px' }}>{new Date(h.appointmentDate).toLocaleDateString()} {h.appointmentTime}</td>
                                         <td style={{ fontSize: '12px' }}>{h.purposeOfVisit}</td>
                                         <td style={{ fontSize: '11px' }}>
-                                            BP: {h.bloodPressure} | Temp: {h.bodyTemperature}°C<br />
+                                            BP: {h.bloodPressure} | Temp: {h.bodyTemperature}°F<br />
                                             Wt: {h.weight}kg | Ht: {h.height}cm
                                         </td>
                                         <td style={{ fontSize: '11px' }}>{h.createdBy}</td>

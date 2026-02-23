@@ -135,7 +135,7 @@ export default function AppointmentList() {
                                         {a.purposeOfVisit}
                                     </td>
                                     <td>
-                                        <div style={{ fontSize: '11px' }}>BP: {a.bloodPressure} | Temp: {a.bodyTemperature}°C</div>
+                                        <div style={{ fontSize: '11px' }}>BP: {a.bloodPressure} | Temp: {a.bodyTemperature}°F</div>
                                         <div style={{ fontSize: '11px' }}>Wt: {a.weight}kg | Ht: {a.height}cm</div>
                                     </td>
                                     <td>
@@ -203,7 +203,7 @@ export default function AppointmentList() {
                                     <input className="form-input" value={form.bloodPressure} onChange={e => setForm({ ...form, bloodPressure: e.target.value })} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Temp (°C)</label>
+                                    <label className="form-label">Temp (°F)</label>
                                     <input className="form-input" value={form.bodyTemperature} onChange={e => setForm({ ...form, bodyTemperature: e.target.value })} />
                                 </div>
                             </div>

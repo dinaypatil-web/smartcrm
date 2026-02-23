@@ -189,7 +189,7 @@ export default function PrescriptionsList() {
                                     </div>
                                     <div className="grid grid-4">
                                         <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>BP</label><div>{latestAppointment.bloodPressure}</div></div>
-                                        <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Temp</label><div>{latestAppointment.bodyTemperature}°C</div></div>
+                                        <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Temp</label><div>{latestAppointment.bodyTemperature}°F</div></div>
                                         <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Weight</label><div>{latestAppointment.weight}kg</div></div>
                                         <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Visit Purpose</label><div style={{ fontSize: '12px' }}>{latestAppointment.purposeOfVisit}</div></div>
                                     </div>
