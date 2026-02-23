@@ -59,16 +59,17 @@ router.get('/history/:patientNumber', auth, rbac('developer', 'admin', 'doctor',
     try {
         const appointments = await AppointmentRepository.findByPatientNumber(req.params.patientNumber);
 
-        // Fetch related prescriptions for each appointment
-        const history = await Promise.all(appointments.map(async (appt) => {
-            const { prescriptions } = await PrescriptionRepository.findAll();
+        // Fetch all once and fix destructuring TypeError
+        const prescriptions = await PrescriptionRepository.findAll();
+
+        const history = appointments.map((appt) => {
             const prescription = prescriptions.find(p => p.appointmentId === appt.id);
             return {
                 ...appt,
                 diagnosis: prescription?.diagnosis || 'No diagnosis recorded',
                 medicines: prescription?.medicines || []
             };
-        }));
+        });
 
         res.json(history);
     } catch (error) {
