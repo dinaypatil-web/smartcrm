@@ -40,7 +40,7 @@ const navItems = [
     },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, mobileOpen, onToggle }) {
     const { user } = useAuth();
 
     const filterItems = (items) => items.filter(item =>
@@ -48,7 +48,7 @@ export default function Sidebar({ collapsed, onToggle }) {
     );
 
     return (
-        <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'open' : ''}`}>
             <div className="sidebar-logo">
                 <div className="logo-icon">A</div>
                 {!collapsed && (
