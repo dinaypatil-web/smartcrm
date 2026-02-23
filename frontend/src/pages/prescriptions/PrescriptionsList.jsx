@@ -11,8 +11,24 @@ export default function PrescriptionsList() {
     const [form, setForm] = useState({
         patient: { name: '', age: '', gender: 'Male', phone: '' },
         diagnosis: '', medicines: [{ medicineName: '', dosage: '', frequency: '', duration: '', instructions: '' }],
-        followUpDate: '', notes: ''
+        followUpDate: '', notes: '', appointmentId: ''
     });
+    const [latestAppointment, setLatestAppointment] = useState(null);
+
+    const fetchLatestAppointment = async (name) => {
+        if (!name || name.length < 3) return;
+        try {
+            const { data } = await api.get(`/appointments?patientName=${name}&limit=1`);
+            if (data.appointments && data.appointments.length > 0) {
+                setLatestAppointment(data.appointments[0]);
+                setForm(prev => ({ ...prev, appointmentId: data.appointments[0].id }));
+            } else {
+                setLatestAppointment(null);
+            }
+        } catch (err) {
+            console.error('Failed to fetch appointment info');
+        }
+    };
 
     useEffect(() => {
         const fetch = async () => {
@@ -57,6 +73,7 @@ export default function PrescriptionsList() {
             await api.post('/prescriptions', form);
             toast.success('Prescription created');
             setShowModal(false);
+            setLatestAppointment(null);
             const { data } = await api.get('/prescriptions?limit=50');
             setPrescriptions(data.prescriptions);
         } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
@@ -99,16 +116,22 @@ export default function PrescriptionsList() {
             </div>
 
             {showModal && (
-                <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                <div className="modal-overlay" onClick={() => { setShowModal(false); setLatestAppointment(null); }}>
                     <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">New Prescription</h3>
-                            <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+                            <button className="modal-close" onClick={() => { setShowModal(false); setLatestAppointment(null); }}>×</button>
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="form-row form-row-4">
                                 <div className="form-group"><label className="form-label">Patient Name *</label>
-                                    <input className="form-input" value={form.patient.name} onChange={e => setForm({ ...form, patient: { ...form.patient, name: e.target.value } })} required /></div>
+                                    <input
+                                        className="form-input"
+                                        value={form.patient.name}
+                                        onChange={e => setForm({ ...form, patient: { ...form.patient, name: e.target.value } })}
+                                        onBlur={(e) => fetchLatestAppointment(e.target.value)}
+                                        required
+                                    /></div>
                                 <div className="form-group"><label className="form-label">Age</label>
                                     <input type="number" className="form-input" value={form.patient.age} onChange={e => setForm({ ...form, patient: { ...form.patient, age: +e.target.value } })} /></div>
                                 <div className="form-group"><label className="form-label">Gender</label>
@@ -119,6 +142,21 @@ export default function PrescriptionsList() {
                             </div>
                             <div className="form-group"><label className="form-label">Diagnosis</label>
                                 <input className="form-input" value={form.diagnosis} onChange={e => setForm({ ...form, diagnosis: e.target.value })} /></div>
+
+                            {latestAppointment && (
+                                <div className="card" style={{ background: 'var(--bg-alt)', border: '1px solid var(--primary-light)', padding: '12px', marginBottom: '16px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                        <h4 style={{ margin: 0, color: 'var(--primary)' }}>📊 Latest Vitals (from Appointment)</h4>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Date: {new Date(latestAppointment.appointmentDate).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="grid grid-4">
+                                        <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>BP</label><div>{latestAppointment.bloodPressure}</div></div>
+                                        <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Temp</label><div>{latestAppointment.bodyTemperature}°C</div></div>
+                                        <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Weight</label><div>{latestAppointment.weight}kg</div></div>
+                                        <div><label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Visit Purpose</label><div style={{ fontSize: '12px' }}>{latestAppointment.purposeOfVisit}</div></div>
+                                    </div>
+                                </div>
+                            )}
 
                             <h4 style={{ margin: '12px 0 8px' }}>Medicines</h4>
                             {form.medicines.map((med, i) => (
@@ -138,7 +176,7 @@ export default function PrescriptionsList() {
                             <button type="button" className="btn btn-secondary btn-sm" onClick={addMedicine}>+ Add Medicine</button>
 
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setLatestAppointment(null); }}>Cancel</button>
                                 <button type="submit" className="btn btn-primary">Create Prescription</button>
                             </div>
                         </form>
