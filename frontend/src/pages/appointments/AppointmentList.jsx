@@ -76,7 +76,7 @@ export default function AppointmentList() {
     };
 
     return (
-        <div className="fade-in">
+        <div className="page-container fade-in">
             <div className="page-header">
                 <div>
                     <h1 className="page-title">📅 Appointments</h1>
@@ -155,16 +155,15 @@ export default function AppointmentList() {
 
             {/* Pagination would go here */}
 
-            {/* New Appointment Modal */}
             {showModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '600px' }}>
+                <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2 className="modal-title">New Patient Appointment</h2>
-                            <button className="btn-close" onClick={() => setShowModal(false)}>×</button>
+                            <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <form onSubmit={handleSubmit} className="modal-body">
-                            <div className="grid grid-2">
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-row form-row-2">
                                 <div className="form-group">
                                     <label className="form-label">Patient Name</label>
                                     <input required className="form-input" value={form.patientName} onChange={e => setForm({ ...form, patientName: e.target.value })} />
@@ -174,7 +173,7 @@ export default function AppointmentList() {
                                     <input required className="form-input" value={form.purposeOfVisit} onChange={e => setForm({ ...form, purposeOfVisit: e.target.value })} />
                                 </div>
                             </div>
-                            <div className="grid grid-3">
+                            <div className="form-row form-row-3">
                                 <div className="form-group">
                                     <label className="form-label">Age</label>
                                     <input type="number" className="form-input" value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
@@ -190,7 +189,7 @@ export default function AppointmentList() {
                                     <input type="date" className="form-input" value={form.appointmentDate} onChange={e => setForm({ ...form, appointmentDate: e.target.value })} />
                                 </div>
                             </div>
-                            <div className="grid grid-4">
+                            <div className="form-row form-row-4">
                                 <div className="form-group">
                                     <label className="form-label">Weight (kg)</label>
                                     <input className="form-input" value={form.weight} onChange={e => setForm({ ...form, weight: e.target.value })} />
@@ -223,13 +222,13 @@ export default function AppointmentList() {
 
             {/* History Modal */}
             {showHistory && (
-                <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '800px' }}>
+                <div className="modal-overlay" onClick={() => setShowHistory(false)}>
+                    <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2 className="modal-title">Patient History: {history[0]?.patientName} ({history[0]?.patientNumber})</h2>
-                            <button className="btn-close" onClick={() => setShowHistory(false)}>×</button>
+                            <button className="modal-close" onClick={() => setShowHistory(false)}>×</button>
                         </div>
-                        <div className="modal-body">
+                        <div>
                             <div className="table-container" style={{ maxHeight: '400px' }}>
                                 <table>
                                     <thead>
