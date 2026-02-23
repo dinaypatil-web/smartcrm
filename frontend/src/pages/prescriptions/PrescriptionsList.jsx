@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useReactToPrint } from 'react-to-print';
+import { useRef } from 'react';
+import { FiPrinter } from 'react-icons/fi';
+import PrescriptionPrint from '../../components/prescriptions/PrescriptionPrint';
 
 export default function PrescriptionsList() {
     const { user } = useAuth();
@@ -11,17 +15,46 @@ export default function PrescriptionsList() {
     const [form, setForm] = useState({
         patient: { name: '', age: '', gender: 'Male', phone: '' },
         diagnosis: '', medicines: [{ medicineName: '', dosage: '', frequency: '', duration: '', instructions: '' }],
-        followUpDate: '', notes: '', appointmentId: ''
+        followUpDate: '', notes: '', appointmentId: '',
+        vitals: { bloodPressure: '', bodyTemperature: '', weight: '', height: '' }
     });
     const [latestAppointment, setLatestAppointment] = useState(null);
+
+    // Print State
+    const [printData, setPrintData] = useState(null);
+    const componentRef = useRef();
+    const handlePrint = useReactToPrint({
+        content: () => componentRef.current,
+        onAfterPrint: () => setPrintData(null)
+    });
+
+    const triggerPrint = (data) => {
+        setPrintData(data);
+        setTimeout(() => handlePrint(), 100);
+    };
 
     const fetchLatestAppointment = async (name) => {
         if (!name || name.length < 3) return;
         try {
             const { data } = await api.get(`/appointments?patientName=${name}&limit=1`);
             if (data.appointments && data.appointments.length > 0) {
-                setLatestAppointment(data.appointments[0]);
-                setForm(prev => ({ ...prev, appointmentId: data.appointments[0].id }));
+                const appt = data.appointments[0];
+                setLatestAppointment(appt);
+                setForm(prev => ({
+                    ...prev,
+                    appointmentId: appt.id,
+                    vitals: {
+                        bloodPressure: appt.bloodPressure || '',
+                        bodyTemperature: appt.bodyTemperature || '',
+                        weight: appt.weight || '',
+                        height: appt.height || ''
+                    },
+                    patient: {
+                        ...prev.patient,
+                        age: appt.age || prev.patient.age,
+                        gender: appt.gender || prev.patient.gender
+                    }
+                }));
             } else {
                 setLatestAppointment(null);
             }
@@ -96,7 +129,7 @@ export default function PrescriptionsList() {
 
             <div className="table-container">
                 <table>
-                    <thead><tr><th>Rx #</th><th>Date</th><th>Patient</th><th>Age</th><th>Diagnosis</th><th>Medicines</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Rx #</th><th>Date</th><th>Patient</th><th>Age</th><th>Diagnosis</th><th>Medicines</th><th>Status</th><th className="text-end">Actions</th></tr></thead>
                     <tbody>
                         {prescriptions.length === 0 ? (
                             <tr><td colSpan="7"><div className="empty-state"><p>No prescriptions</p></div></td></tr>
@@ -109,6 +142,11 @@ export default function PrescriptionsList() {
                                 <td>{p.diagnosis || '—'}</td>
                                 <td>{p.medicines?.length} items</td>
                                 <td><span className={`badge ${p.isDispensed ? 'badge-success' : 'badge-warning'}`}>{p.isDispensed ? 'Dispensed' : 'Pending'}</span></td>
+                                <td className="text-end">
+                                    <button className="btn btn-sm" onClick={() => triggerPrint(p)}>
+                                        <FiPrinter size={14} /> Print
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -183,6 +221,10 @@ export default function PrescriptionsList() {
                     </div>
                 </div>
             )}
+            {/* Hidden component for printing */}
+            <div style={{ display: 'none' }}>
+                <PrescriptionPrint ref={componentRef} data={printData} />
+            </div>
         </div>
     );
 }
