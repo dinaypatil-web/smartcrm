@@ -10,6 +10,7 @@ export default function Reports() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [data, setData] = useState(null);
+    const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
 
     const fetchReport = async () => {
@@ -33,6 +34,23 @@ export default function Reports() {
                     res = await api.get('/inventory/valuation');
                     setData(res.data);
                     break;
+                case 'patientHistory':
+                    if (!search) {
+                        toast.error('Please enter patient name or number');
+                        setLoading(false);
+                        return;
+                    }
+                    // First search for the patient to get their number if needed
+                    const { data: appts } = await api.get(`/appointments?patientName=${search}&limit=1`);
+                    if (appts.appointments.length === 0) {
+                        toast.error('Patient not found');
+                        setLoading(false);
+                        return;
+                    }
+                    const pNumber = appts.appointments[0].patientNumber;
+                    res = await api.get(`/appointments/history/${pNumber}`);
+                    setData({ history: res.data, patient: appts.appointments[0] });
+                    break;
             }
         } catch (err) { toast.error('Failed to load report'); }
         finally { setLoading(false); }
@@ -53,8 +71,15 @@ export default function Reports() {
                             <option value="sales">Sales Report</option>
                             <option value="purchases">Purchase Report</option>
                             <option value="valuation">Stock Valuation</option>
+                            <option value="patientHistory">Patient History</option>
                         </select>
                     </div>
+                    {reportType === 'patientHistory' && (
+                        <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label">Patient Name / Number</label>
+                            <input className="form-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient..." />
+                        </div>
+                    )}
                     {reportType === 'stock' && <>
                         <div className="form-group" style={{ margin: 0 }}>
                             <label className="form-label">Year</label>
@@ -143,6 +168,29 @@ export default function Reports() {
                                         <td>₹{v.purchasePrice}</td>
                                         <td>₹{v.costValue.toLocaleString('en-IN')}</td>
                                         <td>₹{v.sellingValue.toLocaleString('en-IN')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+            {data && reportType === 'patientHistory' && (
+                <div className="card">
+                    <h3 className="card-title" style={{ marginBottom: '16px' }}>📝 Patient History: {data.patient?.patientName} ({data.patient?.patientNumber})</h3>
+                    <div className="table-container">
+                        <table>
+                            <thead><tr><th>Date</th><th>Purpose</th><th>Vitals</th><th>Created By</th></tr></thead>
+                            <tbody>
+                                {data.history?.map(h => (
+                                    <tr key={h.id}>
+                                        <td style={{ fontSize: '12px' }}>{new Date(h.appointmentDate).toLocaleDateString()} {h.appointmentTime}</td>
+                                        <td style={{ fontSize: '12px' }}>{h.purposeOfVisit}</td>
+                                        <td style={{ fontSize: '11px' }}>
+                                            BP: {h.bloodPressure} | Temp: {h.bodyTemperature}°C<br />
+                                            Wt: {h.weight}kg | Ht: {h.height}cm
+                                        </td>
+                                        <td style={{ fontSize: '11px' }}>{h.createdBy}</td>
                                     </tr>
                                 ))}
                             </tbody>
