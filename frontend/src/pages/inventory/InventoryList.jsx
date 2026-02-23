@@ -10,12 +10,19 @@ export default function InventoryList() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
+    const [alerts, setAlerts] = useState({ expiringSoon: [], expired: [] });
+    const [showExpired, setShowExpired] = useState(false);
+
     useEffect(() => {
         const fetch = async () => {
             try {
-                const { data } = await api.get(`/inventory?search=${search}&lowStockOnly=${lowStockOnly}&page=${page}&limit=30`);
-                setItems(data.items);
-                setTotalPages(data.pages);
+                const [invRes, alertsRes] = await Promise.all([
+                    api.get(`/inventory?search=${search}&lowStockOnly=${lowStockOnly}&page=${page}&limit=30`),
+                    api.get('/inventory/alerts')
+                ]);
+                setItems(invRes.data.items);
+                setTotalPages(invRes.data.pages);
+                setAlerts(alertsRes.data);
             } catch (err) { toast.error('Failed to load'); }
             finally { setLoading(false); }
         };
@@ -28,11 +35,45 @@ export default function InventoryList() {
         <div>
             <div className="page-header">
                 <div><h1 className="page-title">📋 Inventory</h1><p className="page-subtitle">Real-time stock levels</p></div>
-                <label className="form-checkbox">
-                    <input type="checkbox" checked={lowStockOnly} onChange={e => { setLowStockOnly(e.target.checked); setPage(1); }} />
-                    <span style={{ color: lowStockOnly ? 'var(--danger)' : 'var(--text-secondary)' }}>⚠️ Low Stock Only</span>
-                </label>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                    <label className="form-checkbox">
+                        <input type="checkbox" checked={lowStockOnly} onChange={e => { setLowStockOnly(e.target.checked); setPage(1); }} />
+                        <span style={{ color: lowStockOnly ? 'var(--danger)' : 'var(--text-secondary)' }}>⚠️ Low Stock Only</span>
+                    </label>
+                    <label className="form-checkbox">
+                        <input type="checkbox" checked={showExpired} onChange={e => setShowExpired(e.target.checked)} />
+                        <span style={{ color: alerts.expired.length > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>💀 Expired Batches ({alerts.expired.length})</span>
+                    </label>
+                </div>
             </div>
+
+            {showExpired && alerts.expired.length > 0 && (
+                <div className="card fade-in" style={{ marginBottom: '24px', border: '1px solid var(--danger-muted)', background: 'rgba(255, 82, 82, 0.02)' }}>
+                    <div className="card-header" style={{ borderBottom: '1px solid var(--danger-muted)' }}>
+                        <h3 className="card-title" style={{ color: 'var(--danger)' }}>⚠️ Expired Material Stock</h3>
+                    </div>
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr style={{ background: 'rgba(255, 82, 82, 0.05)' }}>
+                                    <th>Item</th><th>Code</th><th>Batch</th><th>Quantity</th><th>Expired Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {alerts.expired.map((b, i) => (
+                                    <tr key={i}>
+                                        <td><strong>{b.itemName}</strong></td>
+                                        <td><code>{b.itemCode}</code></td>
+                                        <td><code style={{ color: 'var(--danger)' }}>{b.batchNumber}</code></td>
+                                        <td style={{ fontWeight: 700, color: 'var(--danger)' }}>{b.quantity}</td>
+                                        <td style={{ color: 'var(--danger)' }}>{new Date(b.expiryDate).toLocaleDateString('en-IN')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             <div className="card" style={{ marginBottom: '16px' }}>
                 <input className="form-input" placeholder="🔍 Search by name, code, or barcode..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />

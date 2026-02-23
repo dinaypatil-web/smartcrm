@@ -128,6 +128,58 @@ router.get('/monthly-summary', auth, rbac('developer', 'admin', 'store'), async 
     }
 });
 
+// GET /api/inventory/alerts - Items expiring within 15 days
+router.get('/alerts', auth, async (req, res) => {
+    try {
+        const threshold = new Date();
+        threshold.setDate(threshold.getDate() + 15);
+
+        // We need to check inventory_ledger for positive quantities (stock in) that haven't been fully consumed?
+        // Actually, the simplest way is to check all batches in ledger with expiryDate < threshold
+        const allLedger = await InventoryLedgerRepository.findAll();
+        const activeStock = {}; // itemId -> { batchNumber -> { quantity, expiryDate } }
+
+        // This is a bit complex in Firestore without a proper batch table. 
+        // We'll calculate current stock by batch from ledger.
+        allLedger.forEach(entry => {
+            if (!entry.batchNumber || !entry.expiryDate) return;
+            const key = `${entry.item}_${entry.batchNumber}`;
+            if (!activeStock[key]) {
+                activeStock[key] = { itemId: entry.item, batchNumber: entry.batchNumber, quantity: 0, expiryDate: new Date(entry.expiryDate) };
+            }
+            activeStock[key].quantity += entry.quantity;
+        });
+
+        const now = new Date();
+        const alerts = [];
+        const expired = [];
+
+        for (const key in activeStock) {
+            const batch = activeStock[key];
+            if (batch.quantity <= 0) continue;
+
+            if (batch.expiryDate < now) {
+                expired.push(batch);
+            } else if (batch.expiryDate <= threshold) {
+                alerts.push(batch);
+            }
+        }
+
+        // Populate item names
+        for (const list of [alerts, expired]) {
+            for (const batch of list) {
+                const item = await ItemRepository.findById(batch.itemId);
+                batch.itemName = item ? item.itemName : 'Unknown';
+                batch.itemCode = item ? item.itemCode : '';
+            }
+        }
+
+        res.json({ expiringSoon: alerts, expired });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /api/inventory/valuation
 router.get('/valuation', auth, rbac('developer', 'admin'), async (req, res) => {
     try {

@@ -31,11 +31,16 @@ export default function Dashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const [alerts, setAlerts] = useState({ expiringSoon: [], expired: [] });
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
-                const { data: d } = await api.get('/reports/dashboard');
-                setData(d);
+                const [dashRes, alertsRes] = await Promise.all([
+                    api.get('/reports/dashboard'),
+                    api.get('/inventory/alerts')
+                ]);
+                setData(dashRes.data);
+                setAlerts(alertsRes.data);
             } catch (err) { console.error(err); }
             finally { setLoading(false); }
         };
@@ -112,6 +117,30 @@ export default function Dashboard() {
                 <h2>Welcome back, {user?.name?.split(' ')[0]}</h2>
                 <p>Here's what's happening with your business today.</p>
             </div>
+
+            {/* Alertas de Expiración */}
+            {(alerts.expired.length > 0 || alerts.expiringSoon.length > 0) && (
+                <div style={{ marginBottom: '24px' }}>
+                    {alerts.expired.map((b, i) => (
+                        <div key={`exp-${i}`} className="card" style={{ borderLeft: '4px solid var(--danger)', marginBottom: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <FiAlertTriangle style={{ color: 'var(--danger)', fontSize: '20px' }} />
+                            <div>
+                                <strong style={{ color: 'var(--danger)' }}>EXPIRED: {b.itemName}</strong>
+                                <p style={{ fontSize: '12px', margin: 0 }}>Batch: {b.batchNumber} | Quantity: {b.quantity} | Expired on: {new Date(b.expiryDate).toLocaleDateString('en-IN')}</p>
+                            </div>
+                        </div>
+                    ))}
+                    {alerts.expiringSoon.map((b, i) => (
+                        <div key={`soon-${i}`} className="card" style={{ borderLeft: '4px solid var(--warning)', marginBottom: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <FiAlertTriangle style={{ color: 'var(--warning)', fontSize: '20px' }} />
+                            <div>
+                                <strong style={{ color: 'var(--warning)' }}>EXPIRING SOON: {b.itemName}</strong>
+                                <p style={{ fontSize: '12px', margin: 0 }}>Batch: {b.batchNumber} | Quantity: {b.quantity} | Expires on: {new Date(b.expiryDate).toLocaleDateString('en-IN')}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Metrics */}
             <div className="stats-grid">

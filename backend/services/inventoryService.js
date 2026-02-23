@@ -3,7 +3,7 @@ const { ItemRepository, InventoryLedgerRepository, NotificationRepository } = re
 /**
  * Update stock for an item and create ledger entry
  */
-async function updateStock(itemId, quantity, transactionType, referenceId, referenceType, userId, batchNumber = null, rate = 0, notes = '') {
+async function updateStock(itemId, quantity, transactionType, referenceId, referenceType, userId, batchNumber = null, rate = 0, notes = '', expiryDate = null) {
     if (!itemId || typeof itemId !== 'string') {
         console.error(`[InventoryService] INVALID itemId: ${itemId} (type: ${typeof itemId})`);
         throw new Error(`Invalid item ID: ${itemId}`);
@@ -36,6 +36,7 @@ async function updateStock(itemId, quantity, transactionType, referenceId, refer
         referenceId,
         referenceType,
         batchNumber,
+        expiryDate,
         rate,
         notes,
         createdBy: userId,
@@ -70,7 +71,8 @@ async function bulkUpdateStock(items, transactionType, referenceId, referenceTyp
             userId,
             entry.batchNumber,
             entry.landedPrice || entry.unitPrice || 0,
-            entry.notes
+            entry.notes,
+            entry.expiryDate
         );
         results.push(result);
     }
@@ -188,7 +190,8 @@ async function revertBulkUpdateStock(items, transactionType, referenceId, refere
             userId,
             entry.batchNumber,
             entry.landedPrice || entry.unitPrice || 0,
-            `Reversal of ${transactionType} ${referenceId}`
+            `Reversal of ${transactionType} ${referenceId}`,
+            entry.expiryDate
         );
         results.push(result);
     }

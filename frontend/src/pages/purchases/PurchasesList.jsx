@@ -330,7 +330,7 @@ export default function PurchasesList() {
 
                             <div className="table-container" style={{ marginBottom: '16px', maxHeight: '400px' }}>
                                 <table>
-                                    <thead><tr><th style={{ minWidth: '180px' }}>Item</th><th>Qty</th><th>Gross</th><th>Disc%</th><th>Landed</th><th>GST%</th><th>MRP</th><th>Sale Price</th><th>Sale Disc%</th><th>Net Price</th><th>Net Amt</th><th>Batch</th><th></th></tr></thead>
+                                    <thead><tr><th style={{ minWidth: '180px' }}>Item</th><th>Qty</th><th>Gross</th><th>Disc%</th><th>Landed</th><th>GST%</th><th>MRP</th><th>Sale Price</th><th>Sale Disc%</th><th>Net Price</th><th>Net Amt</th><th>Batch</th><th>Expiry</th><th></th></tr></thead>
                                     <tbody>
                                         {itemsWithExtras.map((row, i) => (
                                             <tr key={i}>
@@ -359,6 +359,7 @@ export default function PurchasesList() {
                                                 <td style={{ fontSize: '12px', fontWeight: 600 }}>₹{row.netPrice?.toFixed(2)}</td>
                                                 <td style={{ fontSize: '12px', fontWeight: 700 }}>₹{row.netAmount?.toFixed(2)}</td>
                                                 <td><input className="form-input" value={row.batchNumber} onChange={e => { const newItems = [...form.items]; newItems[i].batchNumber = e.target.value; setForm({ ...form, items: newItems }); }} placeholder="Batch" style={{ width: '80px' }} /></td>
+                                                <td><input type="date" className="form-input" value={row.expiryDate} onChange={e => { const newItems = [...form.items]; newItems[i].expiryDate = e.target.value; setForm({ ...form, items: newItems }); }} style={{ width: '130px' }} /></td>
                                                 <td><button type="button" className="btn btn-danger btn-sm" onClick={() => removeRow(i)}>×</button></td>
                                             </tr>
                                         ))}
