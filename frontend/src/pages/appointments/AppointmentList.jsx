@@ -14,6 +14,8 @@ export default function AppointmentList() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [patientSuggestions, setPatientSuggestions] = useState([]);
+    const [isExistingPatient, setIsExistingPatient] = useState(false);
 
     const [form, setForm] = useState({
         patientName: '',
@@ -58,17 +60,59 @@ export default function AppointmentList() {
         }
     };
 
+    const handlePatientSearch = async (val) => {
+        setForm({ ...form, patientName: val });
+        if (val.length > 2) {
+            try {
+                // Fetch recent appointments matching the name
+                const { data } = await api.get(`/appointments?patientName=${val}&limit=5`);
+                // Get unique patients
+                const unique = [];
+                const seen = new Set();
+                data.appointments.forEach(a => {
+                    if (!seen.has(a.patientNumber)) {
+                        seen.add(a.patientNumber);
+                        unique.push(a);
+                    }
+                });
+                setPatientSuggestions(unique);
+            } catch (err) {
+                console.error('Search failed');
+            }
+        } else {
+            setPatientSuggestions([]);
+        }
+    };
+
+    const selectPatient = (p) => {
+        setForm({
+            ...form,
+            patientName: p.patientName,
+            age: p.age,
+            gender: p.gender,
+            patientNumber: p.patientNumber
+        });
+        setIsExistingPatient(true);
+        setPatientSuggestions([]);
+    };
+
+    const resetForm = () => {
+        setForm({
+            patientName: '', age: '', gender: 'Male', weight: '', height: '',
+            bloodPressure: '', bodyTemperature: '', purposeOfVisit: '', patientNumber: '',
+            appointmentDate: new Date().toISOString().split('T')[0], appointmentTime: '10:00'
+        });
+        setIsExistingPatient(false);
+        setPatientSuggestions([]);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             await api.post('/appointments', form);
             toast.success('Appointment created successfully');
             setShowModal(false);
-            setForm({
-                patientName: '', age: '', gender: 'Male', weight: '', height: '',
-                bloodPressure: '', bodyTemperature: '', purposeOfVisit: '',
-                appointmentDate: new Date().toISOString().split('T')[0], appointmentTime: '10:00'
-            });
+            resetForm();
             fetchAppointments();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to create appointment');
@@ -159,14 +203,51 @@ export default function AppointmentList() {
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
                     <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2 className="modal-title">New Patient Appointment</h2>
-                            <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+                            <h2 className="modal-title">{isExistingPatient ? 'Book Returning Patient' : 'New Patient Appointment'}</h2>
+                            <button className="modal-close" onClick={() => { setShowModal(false); resetForm(); }}>×</button>
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="form-row form-row-2">
-                                <div className="form-group">
-                                    <label className="form-label">Patient Name</label>
-                                    <input required className="form-input" value={form.patientName} onChange={e => setForm({ ...form, patientName: e.target.value })} />
+                                <div className="form-group" style={{ position: 'relative' }}>
+                                    <label className="form-label">Patient Name {isExistingPatient && <span className="badge badge-success" style={{ marginLeft: '8px' }}>Existing ID: {form.patientNumber}</span>}</label>
+                                    <input
+                                        required
+                                        className="form-input"
+                                        value={form.patientName}
+                                        onChange={e => handlePatientSearch(e.target.value)}
+                                        placeholder="Type name to find existing..."
+                                        disabled={isExistingPatient}
+                                    />
+                                    {isExistingPatient && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-link btn-sm"
+                                            style={{ position: 'absolute', right: 0, top: 0, color: 'var(--danger)' }}
+                                            onClick={() => setIsExistingPatient(false)}
+                                        >
+                                            Change Patient
+                                        </button>
+                                    )}
+                                    {patientSuggestions.length > 0 && (
+                                        <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: '4px', padding: '4px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--accent)' }}>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)' }}>Match found:</div>
+                                            {patientSuggestions.map(p => (
+                                                <div
+                                                    key={p.id}
+                                                    style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px', transition: 'background 0.2s' }}
+                                                    onClick={() => selectPatient(p)}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <div style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                                                        <span>{p.patientName}</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--accent)' }}>{p.patientNumber}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{p.age}y | {p.gender} | Last visited: {new Date(p.appointmentDate).toLocaleDateString()}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Purpose of Visit</label>
