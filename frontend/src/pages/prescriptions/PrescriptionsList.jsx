@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useReactToPrint } from 'react-to-print';
 import { useRef } from 'react';
-import { FiPrinter } from 'react-icons/fi';
+import { FiPrinter, FiEdit2, FiSearch } from 'react-icons/fi';
 import PrescriptionPrint from '../../components/prescriptions/PrescriptionPrint';
 
 export default function PrescriptionsList() {
@@ -19,6 +19,9 @@ export default function PrescriptionsList() {
         vitals: { bloodPressure: '', bodyTemperature: '', weight: '', height: '' }
     });
     const [latestAppointment, setLatestAppointment] = useState(null);
+    const [appointments, setAppointments] = useState([]);
+    const [showAppointmentPicker, setShowAppointmentPicker] = useState(false);
+    const [editingId, setEditingId] = useState(null);
 
     // Print State
     const [printData, setPrintData] = useState(null);
@@ -33,34 +36,37 @@ export default function PrescriptionsList() {
         setTimeout(() => handlePrint(), 100);
     };
 
-    const fetchLatestAppointment = async (name) => {
-        if (!name || name.length < 3) return;
+    const fetchTodayAppointments = async () => {
         try {
-            const { data } = await api.get(`/appointments?patientName=${name}&limit=1`);
-            if (data.appointments && data.appointments.length > 0) {
-                const appt = data.appointments[0];
-                setLatestAppointment(appt);
-                setForm(prev => ({
-                    ...prev,
-                    appointmentId: appt.id,
-                    vitals: {
-                        bloodPressure: appt.bloodPressure || '',
-                        bodyTemperature: appt.bodyTemperature || '',
-                        weight: appt.weight || '',
-                        height: appt.height || ''
-                    },
-                    patient: {
-                        ...prev.patient,
-                        age: appt.age || prev.patient.age,
-                        gender: appt.gender || prev.patient.gender
-                    }
-                }));
-            } else {
-                setLatestAppointment(null);
+            const today = new Date().toISOString().split('T')[0];
+            const { data } = await api.get(`/appointments?startDate=${today}&limit=50`);
+            setAppointments(data.appointments);
+            setShowAppointmentPicker(true);
+        } catch (err) { toast.error('Failed to fetch appointments'); }
+    };
+
+    const selectAppointment = (appt) => {
+        setLatestAppointment(appt);
+        setForm({
+            patient: {
+                name: appt.patientName,
+                age: appt.age || '',
+                gender: appt.gender || 'Male',
+                phone: appt.phone || ''
+            },
+            diagnosis: '',
+            medicines: [{ medicineName: '', dosage: '', frequency: '', duration: '', instructions: '' }],
+            followUpDate: '',
+            notes: '',
+            appointmentId: appt.id,
+            vitals: {
+                bloodPressure: appt.bloodPressure || '',
+                bodyTemperature: appt.bodyTemperature || '',
+                weight: appt.weight || '',
+                height: appt.height || ''
             }
-        } catch (err) {
-            console.error('Failed to fetch appointment info');
-        }
+        });
+        setShowAppointmentPicker(false);
     };
 
     useEffect(() => {
@@ -103,13 +109,33 @@ export default function PrescriptionsList() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/prescriptions', form);
-            toast.success('Prescription created');
+            if (editingId) {
+                await api.put(`/prescriptions/${editingId}`, form);
+                toast.success('Prescription updated');
+            } else {
+                await api.post('/prescriptions', form);
+                toast.success('Prescription created');
+            }
             setShowModal(false);
+            setEditingId(null);
             setLatestAppointment(null);
             const { data } = await api.get('/prescriptions?limit=50');
             setPrescriptions(data.prescriptions);
         } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
+    };
+
+    const openEdit = (p) => {
+        setEditingId(p._id);
+        setForm({
+            patient: p.patient || { name: '', age: '', gender: 'Male', phone: '' },
+            diagnosis: p.diagnosis || '',
+            medicines: p.medicines || [{ medicineName: '', dosage: '', frequency: '', duration: '', instructions: '' }],
+            followUpDate: p.followUpDate || '',
+            notes: p.notes || '',
+            appointmentId: p.appointmentId || '',
+            vitals: p.vitals || { bloodPressure: '', bodyTemperature: '', weight: '', height: '' }
+        });
+        setShowModal(true);
     };
 
     const addMedicine = () => setForm(prev => ({
@@ -123,7 +149,16 @@ export default function PrescriptionsList() {
             <div className="page-header">
                 <div><h1 className="page-title">💊 Prescriptions</h1><p className="page-subtitle">Doctor prescriptions</p></div>
                 {(user?.role === 'doctor' || user?.role === 'developer') && (
-                    <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ New Prescription</button>
+                    <button className="btn btn-primary" onClick={() => {
+                        setEditingId(null);
+                        setForm({
+                            patient: { name: '', age: '', gender: 'Male', phone: '' },
+                            diagnosis: '', medicines: [{ medicineName: '', dosage: '', frequency: '', duration: '', instructions: '' }],
+                            followUpDate: '', notes: '', appointmentId: '',
+                            vitals: { bloodPressure: '', bodyTemperature: '', weight: '', height: '' }
+                        });
+                        setShowModal(true);
+                    }}>+ New Prescription</button>
                 )}
             </div>
 
@@ -143,9 +178,14 @@ export default function PrescriptionsList() {
                                 <td>{p.medicines?.length} items</td>
                                 <td><span className={`badge ${p.isDispensed ? 'badge-success' : 'badge-warning'}`}>{p.isDispensed ? 'Dispensed' : 'Pending'}</span></td>
                                 <td className="text-end">
-                                    <button className="btn btn-sm" onClick={() => triggerPrint(p)}>
-                                        <FiPrinter size={14} /> Print
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                        <button className="btn btn-sm" onClick={() => openEdit(p)} title="Edit">
+                                            <FiEdit2 size={14} />
+                                        </button>
+                                        <button className="btn btn-sm" onClick={() => triggerPrint(p)} title="Print">
+                                            <FiPrinter size={14} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -157,19 +197,25 @@ export default function PrescriptionsList() {
                 <div className="modal-overlay" onClick={() => { setShowModal(false); setLatestAppointment(null); }}>
                     <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">New Prescription</h3>
-                            <button className="modal-close" onClick={() => { setShowModal(false); setLatestAppointment(null); }}>×</button>
+                            <h3 className="modal-title">{editingId ? 'Edit Prescription' : 'New Prescription'}</h3>
+                            <button className="modal-close" onClick={() => { setShowModal(false); setLatestAppointment(null); setEditingId(null); }}>×</button>
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="form-row form-row-4">
-                                <div className="form-group"><label className="form-label">Patient Name *</label>
-                                    <input
-                                        className="form-input"
-                                        value={form.patient.name}
-                                        onChange={e => setForm({ ...form, patient: { ...form.patient, name: e.target.value } })}
-                                        onBlur={(e) => fetchLatestAppointment(e.target.value)}
-                                        required
-                                    /></div>
+                                <div className="form-group" style={{ position: 'relative' }}>
+                                    <label className="form-label">Patient Name *</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            className="form-input"
+                                            value={form.patient.name}
+                                            onChange={e => setForm({ ...form, patient: { ...form.patient, name: e.target.value } })}
+                                            required
+                                        />
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={fetchTodayAppointments} title="Select from today's appointments">
+                                            <FiSearch size={14} />
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="form-group"><label className="form-label">Age</label>
                                     <input type="number" className="form-input" value={form.patient.age} onChange={e => setForm({ ...form, patient: { ...form.patient, age: +e.target.value } })} /></div>
                                 <div className="form-group"><label className="form-label">Gender</label>
@@ -214,9 +260,36 @@ export default function PrescriptionsList() {
                             <button type="button" className="btn btn-secondary btn-sm" onClick={addMedicine}>+ Add Medicine</button>
 
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setLatestAppointment(null); }}>Cancel</button>
-                                <button type="submit" className="btn btn-primary">Create Prescription</button>
+                                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setLatestAppointment(null); setEditingId(null); }}>Cancel</button>
+                                <button type="submit" className="btn btn-primary">{editingId ? 'Update Prescription' : 'Create Prescription'}</button>
                             </div>
+                            {showAppointmentPicker && (
+                                <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setShowAppointmentPicker(false)}>
+                                    <div className="modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                                        <div className="modal-header">
+                                            <h3 className="modal-title">Select Appointment</h3>
+                                            <button type="button" className="modal-close" onClick={() => setShowAppointmentPicker(false)}>×</button>
+                                        </div>
+                                        <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '12px' }}>
+                                            {appointments.length === 0 ? (
+                                                <div className="empty-state"><p>No appointments found for today</p></div>
+                                            ) : appointments.map(a => (
+                                                <div
+                                                    key={a.id}
+                                                    className="card"
+                                                    style={{ marginBottom: '8px', cursor: 'pointer', padding: '10px' }}
+                                                    onClick={() => selectAppointment(a)}
+                                                >
+                                                    <div style={{ fontWeight: 'bold' }}>{a.patientName}</div>
+                                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                        {a.purposeOfVisit} | {a.patientNumber}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </form>
                     </div>
                 </div>
