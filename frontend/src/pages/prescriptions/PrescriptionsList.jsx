@@ -39,7 +39,7 @@ export default function PrescriptionsList() {
     const fetchTodayAppointments = async () => {
         try {
             const today = new Date().toISOString().split('T')[0];
-            const { data } = await api.get(`/appointments?startDate=${today}&limit=50`);
+            const { data } = await api.get(`/appointments?startDate=${today}&status=pending&limit=50`);
             setAppointments(data.appointments);
             setShowAppointmentPicker(true);
         } catch (err) { toast.error('Failed to fetch appointments'); }

@@ -93,6 +93,12 @@ router.post('/', auth, rbac('developer', 'doctor'), async (req, res) => {
             doctor: req.user.id,
             prescriptionDate: new Date()
         });
+
+        // Mark appointment as completed if linked
+        if (req.body.appointmentId) {
+            await AppointmentRepository.update(req.body.appointmentId, { status: 'completed' });
+        }
+
         res.status(201).json(prescription);
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -18,7 +18,7 @@ async function generatePatientNumber(patientName) {
 // GET /api/appointments
 router.get('/', auth, rbac('developer', 'admin', 'doctor', 'attendant'), async (req, res) => {
     try {
-        const { startDate, endDate, patientName, patientNumber, page = 1, limit = 20 } = req.query;
+        const { startDate, endDate, patientName, patientNumber, status, page = 1, limit = 20 } = req.query;
         let appointments = await AppointmentRepository.findAll();
 
         if (startDate || endDate) {
@@ -37,6 +37,10 @@ router.get('/', auth, rbac('developer', 'admin', 'doctor', 'attendant'), async (
 
         if (patientNumber) {
             appointments = appointments.filter(a => a.patientNumber === patientNumber);
+        }
+
+        if (status) {
+            appointments = appointments.filter(a => a.status === status);
         }
 
         appointments.sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate));
@@ -73,6 +77,7 @@ router.post('/', auth, rbac('developer', 'admin', 'attendant'), async (req, res)
         const appointment = await AppointmentRepository.create({
             ...req.body,
             patientNumber,
+            status: 'pending',
             createdBy: req.user.id,
             createdAt: new Date()
         });
