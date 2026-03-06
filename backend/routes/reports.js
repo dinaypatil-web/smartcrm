@@ -19,14 +19,18 @@ router.get('/dashboard', auth, async (req, res) => {
 
         // Normalize dates helper
         const normalizeDate = (obj, field) => {
-            if (!obj[field]) return null;
-            if (typeof obj[field] === 'object' && obj[field]._seconds) {
-                return new Date(obj[field]._seconds * 1000);
+            if (!obj || !obj[field]) return null;
+            let d;
+            if (obj[field] instanceof Date) {
+                d = obj[field];
+            } else if (typeof obj[field] === 'object' && obj[field]._seconds) {
+                d = new Date(obj[field]._seconds * 1000);
+            } else if (obj[field].toDate) {
+                d = obj[field].toDate();
+            } else {
+                d = new Date(obj[field]);
             }
-            if (obj[field].toDate) {
-                return obj[field].toDate();
-            }
-            return new Date(obj[field]);
+            return isNaN(d.getTime()) ? null : d;
         };
 
         // Today's sales
@@ -131,6 +135,9 @@ router.get('/sales', auth, rbac('developer', 'admin'), async (req, res) => {
             const month = String(sDate.getMonth() + 1).padStart(2, '0');
             const day = String(sDate.getDate()).padStart(2, '0');
 
+            key = `${year}-${month}-${day}`;
+            if (isNaN(sDate.getTime())) return;
+
             if (groupBy === 'month') {
                 key = `${year}-${month}`;
             } else if (groupBy === 'week') {
@@ -138,8 +145,6 @@ router.get('/sales', auth, rbac('developer', 'admin'), async (req, res) => {
                 const firstJan = new Date(year, 0, 1);
                 const weekNum = Math.ceil((((sDate - firstJan) / 86400000) + firstJan.getDay() + 1) / 7);
                 key = `${year}-W${String(weekNum).padStart(2, '0')}`;
-            } else {
-                key = `${year}-${month}-${day}`;
             }
 
             if (!groups.has(key)) {
@@ -187,11 +192,10 @@ router.get('/purchases', auth, rbac('developer', 'admin'), async (req, res) => {
             const year = pDate.getFullYear();
             const month = String(pDate.getMonth() + 1).padStart(2, '0');
             const day = String(pDate.getDate()).padStart(2, '0');
+            key = `${year}-${month}-${day}`;
 
             if (groupBy === 'month') {
                 key = `${year}-${month}`;
-            } else {
-                key = `${year}-${month}-${day}`;
             }
 
             if (!groups.has(key)) {
@@ -210,6 +214,7 @@ router.get('/purchases', auth, rbac('developer', 'admin'), async (req, res) => {
         const report = Array.from(groups.values()).sort((a, b) => a._id.localeCompare(b._id));
         res.json(report);
     } catch (error) {
+        console.error('[ReportsRoute] Error in /purchases:', error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -14,6 +14,11 @@ export default function Reports() {
     const [loading, setLoading] = useState(false);
 
     const fetchReport = async () => {
+        if ((reportType === 'sales' || reportType === 'purchases') && (!startDate || !endDate)) {
+            toast.error('Please select both start and end dates');
+            return;
+        }
+
         setLoading(true);
         try {
             let res;
@@ -58,7 +63,11 @@ export default function Reports() {
                     setData({ history: res.data, patient: patient });
                     break;
             }
-        } catch (err) { toast.error('Failed to load report'); }
+        } catch (err) {
+            console.error('Report load error:', err);
+            const msg = err.response?.data?.error || 'Failed to load report';
+            toast.error(msg);
+        }
         finally { setLoading(false); }
     };
 
