@@ -7,7 +7,7 @@ class InventoryLedgerRepository extends BaseRepository {
 
     async findByItem(itemId) {
         if (!this.collection) throw new Error('Firestore not initialized');
-        const snapshot = await this.collection.where('item', '==', itemId).orderBy('date', 'desc').get();
+        const snapshot = await this.collection.where('item', '==', itemId).orderBy('createdAt', 'desc').get();
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 }

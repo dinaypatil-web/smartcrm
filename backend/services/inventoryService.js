@@ -1,55 +1,110 @@
 const { ItemRepository, InventoryLedgerRepository, NotificationRepository } = require('../repositories');
 
 /**
- * Update stock for an item and create ledger entry
+ * Update stock for an item and create ledger entry using Firestore Transaction for atomicity
  */
 async function updateStock(itemId, quantity, transactionType, referenceId, referenceType, userId, batchNumber = null, rate = 0, notes = '', expiryDate = null) {
     if (!itemId || typeof itemId !== 'string') {
-        console.error(`[InventoryService] INVALID itemId: ${itemId} (type: ${typeof itemId})`);
         throw new Error(`Invalid item ID: ${itemId}`);
     }
 
-    console.log(`[InventoryService] updateStock: itemId=${itemId}, quantity=${quantity}, type=${transactionType}, refId=${referenceId}`);
-    const item = await ItemRepository.findById(itemId);
-    if (!item) {
-        console.error(`[InventoryService] Item NOT FOUND in database: ${itemId}`);
-        throw new Error(`Item not found in database: ${itemId}`);
-    }
+    const { getDb } = require('../config/firebase');
+    const db = getDb();
+    let updatedItem = null;
 
-    const previousStock = item.currentStock || 0;
-    const newStock = previousStock + quantity; // positive = add, negative = deduct
+    await db.runTransaction(async (transaction) => {
+        const itemRef = db.collection('items').doc(itemId);
+        const itemDoc = await transaction.get(itemRef);
 
-    if (newStock < 0 && (transactionType === 'Sale' || transactionType === 'Production_Out')) {
-        throw new Error(`Insufficient stock for ${item.itemName}. Available: ${previousStock}, Required: ${Math.abs(quantity)}`);
-    }
+        if (!itemDoc.exists) throw new Error(`Item not found: ${itemId}`);
+        const item = itemDoc.data();
+        item.id = itemDoc.id;
 
-    await ItemRepository.update(itemId, { currentStock: newStock });
+        const previousStock = item.currentStock || 0;
+        let newStock = previousStock + quantity;
 
-    // Create ledger entry
-    await InventoryLedgerRepository.create({
-        item: itemId,
-        itemCode: item.itemCode,
-        barcodeNumber: item.barcodeNumber,
-        transactionType,
-        quantity,
-        balanceAfter: newStock,
-        referenceId,
-        referenceType,
-        batchNumber,
-        expiryDate,
-        rate,
-        notes,
-        createdBy: userId,
-        createdAt: new Date()
+        if (newStock < 0 && (transactionType === 'Sale' || transactionType === 'Production_Out')) {
+            throw new Error(`Insufficient stock for ${item.itemName}. Available: ${previousStock}, Required: ${Math.abs(quantity)}`);
+        }
+
+        // FEFO Logic: If deduction and no batchNumber, try to find the best batch
+        let finalBatchNumber = batchNumber;
+        let finalExpiryDate = expiryDate;
+
+        if (quantity < 0 && !batchNumber && (transactionType === 'Sale' || transactionType === 'Production_Out')) {
+            // Find most recent batches with stock
+            const ledgerSnapshot = await transaction.get(
+                db.collection('inventory_ledger')
+                    .where('item', '==', itemId)
+                    .orderBy('expiryDate', 'asc') // First Expiring
+            );
+
+            const batchStock = {};
+            ledgerSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                const b = data.batchNumber;
+                if (b) {
+                    batchStock[b] = (batchStock[b] || 0) + data.quantity;
+                    // Keep track of earliest expiry for this batch
+                    if (!batchesInfo[b] || (data.expiryDate && (!batchesInfo[b].expiryDate || data.expiryDate < batchesInfo[b].expiryDate))) {
+                        batchesInfo[b] = { expiryDate: data.expiryDate };
+                    }
+                }
+            });
+
+            // Find first batch with positive stock
+            const availableBatches = Object.keys(batchStock)
+                .filter(b => batchStock[b] > 0)
+                .sort((a, b) => {
+                    const expiryA = batchesInfo[a]?.expiryDate || '9999';
+                    const expiryB = batchesInfo[b]?.expiryDate || '9999';
+                    return expiryA.localeCompare(expiryB);
+                });
+
+            if (availableBatches.length > 0) {
+                finalBatchNumber = availableBatches[0];
+                finalExpiryDate = batchesInfo[finalBatchNumber].expiryDate || null;
+            }
+        }
+
+        // Apply item update
+        transaction.update(itemRef, {
+            currentStock: newStock,
+            updatedAt: new Date()
+        });
+
+        // Create ledger entry
+        const ledgerRef = db.collection('inventory_ledger').doc();
+        transaction.set(ledgerRef, {
+            item: itemId,
+            itemCode: item.itemCode,
+            barcodeNumber: item.barcodeNumber,
+            transactionType,
+            quantity,
+            balanceAfter: newStock,
+            referenceId,
+            referenceType,
+            batchNumber: finalBatchNumber,
+            expiryDate: finalExpiryDate,
+            rate,
+            notes,
+            createdBy: userId,
+            createdAt: new Date()
+        });
+
+        updatedItem = { ...item, currentStock: newStock };
     });
 
     // Check low stock alert
-    if (newStock <= (item.lowStockLevel || 0) && newStock >= 0) {
-        await createLowStockAlert(item, newStock);
+    if (updatedItem.currentStock <= (updatedItem.lowStockLevel || 0) && updatedItem.currentStock >= 0) {
+        await createLowStockAlert(updatedItem, updatedItem.currentStock);
     }
 
-    return { ...item, currentStock: newStock };
+    return updatedItem;
 }
+
+// Local helper for FEFO info tracking
+const batchesInfo = {};
 
 /**
  * Bulk update stock for multiple items (used in purchase/sale)
