@@ -7,6 +7,8 @@ import { useReactToPrint } from 'react-to-print';
 import { FiSearch, FiShoppingCart } from 'react-icons/fi';
 import './POSTerminal.css';
 import CompactInvoice from '../../components/CompactInvoice';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { FiCamera, FiX } from 'react-icons/fi';
 
 export default function POSTerminal() {
     const { id } = useParams();
@@ -27,6 +29,9 @@ export default function POSTerminal() {
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
+
+    // Scanner State
+    const [showScanner, setShowScanner] = useState(false);
 
     const barcodeRef = useRef(null);
     const searchRef = useRef(null);
@@ -144,17 +149,48 @@ export default function POSTerminal() {
 
     const handleBarcodeScan = async (e) => {
         if (e.key === 'Enter' && barcodeInput.trim()) {
-            try {
-                const { data: item } = await api.get(`/items/barcode/${barcodeInput.trim()}`);
-                addToCart(item);
-                setBarcodeInput('');
-            } catch (err) {
-                toast.error('Item not found!');
-                setBarcodeInput('');
-            }
-            barcodeRef.current?.focus();
+            processBarcode(barcodeInput.trim());
         }
     };
+
+    const processBarcode = async (code) => {
+        if (!code) return;
+        try {
+            const { data: item } = await api.get(`/items/barcode/${code}`);
+            addToCart(item);
+            setBarcodeInput('');
+        } catch (err) {
+            toast.error('Item not found!');
+            setBarcodeInput('');
+        }
+        barcodeRef.current?.focus();
+    };
+
+    // Camera Scanner Logic
+    useEffect(() => {
+        let scanner = null;
+        if (showScanner) {
+            scanner = new Html5QrcodeScanner('reader', {
+                fps: 10,
+                qrbox: { width: 250, height: 150 },
+                aspectRatio: 1.0,
+                formatsToSupport: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] // Supports all barcode formats
+            });
+
+            scanner.render((decodedText) => {
+                processBarcode(decodedText);
+                setShowScanner(false);
+                scanner.clear();
+            }, (error) => {
+                // Ignore scan errors for better UX
+            });
+        }
+        return () => {
+            if (scanner) {
+                scanner.clear().catch(err => console.error("Scanner clear failed", err));
+            }
+        };
+    }, [showScanner]);
 
     const addToCart = (item) => {
         setCart(prev => {
@@ -295,19 +331,21 @@ export default function POSTerminal() {
                 <div className="pos-scanner">
                     <div className="barcode-input-container">
                         <input ref={barcodeRef} value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={handleBarcodeScan} placeholder="📷 Scan barcode or type item barcode... (Press 'F' to search)" autoFocus />
-                        <div className="scan-icon" title="Scan Barcode">📷</div>
+                        <button className="scan-icon-btn" onClick={() => setShowScanner(true)} title="Open Camera Scanner">
+                            <FiCamera />
+                        </button>
                         <button
                             className="search-shortcut-btn"
                             onClick={() => setIsSearchOpen(true)}
                             title="Search Item (F)"
                             style={{
                                 position: 'absolute',
-                                right: '12px',
+                                right: '44px',
                                 top: '50%',
                                 transform: 'translateY(-50%)',
                                 background: 'transparent',
                                 border: 'none',
-                                color: 'var(--text-muted)',
+                                color: 'var(--accent)',
                                 cursor: 'pointer',
                                 fontSize: '18px',
                                 display: 'flex',
@@ -481,6 +519,21 @@ export default function POSTerminal() {
                             <div style={{ color: 'var(--accent)', fontWeight: 600 }}>
                                 {searchResults.length} items found
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Camera Scanner Modal */}
+            {showScanner && (
+                <div className="scanner-modal-overlay">
+                    <div className="scanner-modal">
+                        <div className="scanner-header">
+                            <h3>📷 Camera Scanner</h3>
+                            <button className="close-btn" onClick={() => setShowScanner(false)}><FiX /></button>
+                        </div>
+                        <div id="reader" className="scanner-viewfinder"></div>
+                        <div className="scanner-footer">
+                            <p>Point camera at the barcode</p>
                         </div>
                     </div>
                 </div>

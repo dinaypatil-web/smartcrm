@@ -148,3 +148,128 @@
     color: var(--text-secondary);
     margin: 0 2px;
 }
+
+/* ── Camera Scanner Modal ── */
+.scanner-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    padding: 20px;
+}
+
+.scanner-modal {
+    background: #000;
+    width: 100%;
+    max-width: 500px;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    display: flex;
+    flex-direction: column;
+}
+
+.scanner-header {
+    background: #111;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.scanner-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: white;
+}
+
+.scanner-header .close-btn {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+}
+
+.scanner-viewfinder {
+    width: 100%;
+    min-height: 300px;
+    background: #111;
+}
+
+/* Override html5-qrcode's default styling */
+#reader__scan_region {
+    background: transparent !important;
+}
+
+#reader__dashboard {
+    padding: 16px !important;
+    background: #111 !important;
+    color: white !important;
+}
+
+#reader__dashboard button {
+    background: var(--accent) !important;
+    color: white !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: var(--radius-sm) !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+}
+
+.scanner-footer {
+    padding: 16px;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+    background: #111;
+}
+
+/* ── Mobile POS Adjustments ── */
+@media (max-width: 768px) {
+    .pos-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+    }
+
+    .pos-scanner {
+        padding: 0;
+    }
+
+    .pos-cart {
+        height: auto;
+        max-height: 500px;
+    }
+
+    .barcode-input-container input {
+        padding-right: 80px;
+    }
+}
+
+.scan-icon-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.scan-icon-btn:hover {
+    background: var(--bg-hover);
+}
