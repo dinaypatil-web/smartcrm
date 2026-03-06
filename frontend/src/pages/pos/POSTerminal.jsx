@@ -396,9 +396,9 @@ export default function POSTerminal() {
                         <span className="badge badge-info">{cart.length} items</span>
                     </div>
 
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
                         {/* Scrollable middle section */}
-                        <div style={{ padding: '12px 16px', overflowY: 'auto', flex: 1 }}>
+                        <div style={{ padding: '12px 16px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
                             <div className="form-group" style={{ marginBottom: '12px' }}>
                                 <label className="form-label">Customer Name</label>
                                 <input className="form-input" value={customer.name} onChange={e => setCustomer({ ...customer, name: e.target.value })} placeholder="Walk-in Customer" />
