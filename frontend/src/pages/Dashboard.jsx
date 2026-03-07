@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, CartesianGrid } from 'recharts';
-import { FiTrendingUp, FiShoppingCart, FiPackage, FiAlertTriangle, FiActivity, FiDollarSign } from 'react-icons/fi';
+import { FiTrendingUp, FiShoppingCart, FiPackage, FiAlertTriangle, FiActivity, FiDollarSign, FiCalendar, FiClock } from 'react-icons/fi';
 
 const CHART_COLORS = ['#635BFF', '#00C853', '#FFB300', '#FF5252', '#448AFF', '#7B73FF'];
 
@@ -49,7 +49,36 @@ export default function Dashboard() {
 
     if (loading) return <div className="loading-container"><div className="spinner" /></div>;
 
-    const metrics = [
+    const metrics = user?.role === 'doctor' ? [
+        {
+            label: 'Appointments Booked',
+            value: data?.appointmentsBooked || 0,
+            sub: 'today',
+            icon: <FiCalendar />,
+            color: 'var(--accent)'
+        },
+        {
+            label: 'Patients Attended',
+            value: data?.patientsAttended || 0,
+            sub: 'completed diagnosis',
+            icon: <FiActivity />,
+            color: 'var(--success)'
+        },
+        {
+            label: 'Balance Appointments',
+            value: data?.balanceAppointments || 0,
+            sub: 'waiting/pending',
+            icon: <FiClock />,
+            color: 'var(--warning)'
+        },
+        {
+            label: 'Low Stock Items',
+            value: data?.lowStockCount || 0,
+            sub: 'medicines needed',
+            icon: <FiAlertTriangle />,
+            color: data?.lowStockCount > 0 ? 'var(--danger)' : 'var(--text-muted)'
+        }
+    ] : [
         {
             label: "Today's Revenue",
             value: `₹${(data?.todaySales?.total || 0).toLocaleString('en-IN')}`,
@@ -163,80 +192,82 @@ export default function Dashboard() {
             </div>
 
             {/* Charts */}
-            <div className="dashboard-grid">
-                <div className="card fade-in">
-                    <div className="card-header">
-                        <span className="card-title">Top selling items</span>
-                    </div>
-                    {topSellingChart.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={280}>
-                            <AreaChart data={topSellingChart}>
-                                <defs>
-                                    <linearGradient id="colorQty" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.2} />
-                                        <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                                <XAxis
-                                    dataKey="name"
-                                    tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
-                                    axisLine={{ stroke: 'var(--border)' }}
-                                    tickLine={false}
-                                />
-                                <YAxis
-                                    tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Area
-                                    type="monotone" dataKey="qty" name="Quantity"
-                                    stroke="var(--accent)" strokeWidth={2}
-                                    fill="url(#colorQty)"
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div className="empty-state"><p>No sales data yet</p></div>
-                    )}
-                </div>
-
-                <div className="card fade-in">
-                    <div className="card-header">
-                        <span className="card-title">Stock valuation</span>
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '24px 0 8px' }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            Total Value
+            {user?.role !== 'doctor' && (
+                <div className="dashboard-grid">
+                    <div className="card fade-in">
+                        <div className="card-header">
+                            <span className="card-title">Top selling items</span>
                         </div>
-                        <h2 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                            ₹{(data?.stockValue || 0).toLocaleString('en-IN')}
-                        </h2>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>at cost price</div>
+                        {topSellingChart.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={280}>
+                                <AreaChart data={topSellingChart}>
+                                    <defs>
+                                        <linearGradient id="colorQty" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.2} />
+                                            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                                    <XAxis
+                                        dataKey="name"
+                                        tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
+                                        axisLine={{ stroke: 'var(--border)' }}
+                                        tickLine={false}
+                                    />
+                                    <YAxis
+                                        tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Area
+                                        type="monotone" dataKey="qty" name="Quantity"
+                                        stroke="var(--accent)" strokeWidth={2}
+                                        fill="url(#colorQty)"
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="empty-state"><p>No sales data yet</p></div>
+                        )}
                     </div>
-                    {topSellingChart.length > 0 && (
-                        <ResponsiveContainer width="100%" height={180}>
-                            <PieChart>
-                                <Pie
-                                    data={topSellingChart}
-                                    dataKey="revenue" nameKey="name"
-                                    cx="50%" cy="50%"
-                                    innerRadius={50} outerRadius={72}
-                                    paddingAngle={2}
-                                    label={false}
-                                    strokeWidth={0}
-                                >
-                                    {topSellingChart.map((e, i) => (
-                                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    )}
+
+                    <div className="card fade-in">
+                        <div className="card-header">
+                            <span className="card-title">Stock valuation</span>
+                        </div>
+                        <div style={{ textAlign: 'center', padding: '24px 0 8px' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Total Value
+                            </div>
+                            <h2 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                                ₹{(data?.stockValue || 0).toLocaleString('en-IN')}
+                            </h2>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>at cost price</div>
+                        </div>
+                        {topSellingChart.length > 0 && (
+                            <ResponsiveContainer width="100%" height={180}>
+                                <PieChart>
+                                    <Pie
+                                        data={topSellingChart}
+                                        dataKey="revenue" nameKey="name"
+                                        cx="50%" cy="50%"
+                                        innerRadius={50} outerRadius={72}
+                                        paddingAngle={2}
+                                        label={false}
+                                        strokeWidth={0}
+                                    >
+                                        {topSellingChart.map((e, i) => (
+                                            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

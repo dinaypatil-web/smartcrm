@@ -28,7 +28,7 @@ const navItems = [
     },
     {
         section: 'Operations', items: [
-            { path: '/appointments', label: 'Appointments', icon: FiCalendar, roles: ['developer', 'admin', 'doctor', 'attendant'] },
+            { path: '/appointments', label: 'Appointments', icon: FiCalendar, roles: ['developer', 'admin', 'attendant'] },
             { path: '/production', label: 'Production', icon: FiActivity, roles: ['developer', 'admin'] },
             { path: '/prescriptions', label: 'Prescriptions', icon: FiFileText, roles: ['developer', 'admin', 'doctor'] },
         ]

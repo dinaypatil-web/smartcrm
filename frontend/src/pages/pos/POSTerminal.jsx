@@ -24,11 +24,12 @@ export default function POSTerminal() {
     const [lastInvoice, setLastInvoice] = useState(null);
 
     // Search Modal States
-    const [isSearchOpen, setIsSearchOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [searching, setSearching] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
+
+    // Lot Selection States
+    const [isLotModalOpen, setIsLotModalOpen] = useState(false);
+    const [availableLots, setAvailableLots] = useState([]);
+    const [pendingItem, setPendingItem] = useState(null);
 
     // Scanner State
     const [showScanner, setShowScanner] = useState(false);
@@ -192,43 +193,77 @@ export default function POSTerminal() {
         };
     }, [showScanner]);
 
-    const addToCart = (item) => {
-        setCart(prev => {
-            const existing = prev.find(c => c.item._id === item._id);
-            if (existing) {
-                if (existing.quantity + 1 > item.currentStock) {
-                    toast.error(`Only ${item.currentStock} in stock!`);
-                    return prev;
+    const addToCart = async (item, selectedLot = null) => {
+        try {
+            // If item has lots but none selected yet
+            if (!selectedLot) {
+                const { data: batches } = await api.get(`/inventory/batches/${item._id}`);
+                if (batches.length > 1) {
+                    setAvailableLots(batches);
+                    setPendingItem(item);
+                    setIsLotModalOpen(true);
+                    return;
+                } else if (batches.length === 1) {
+                    selectedLot = batches[0];
+                } else {
+                    toast.error('No stock available for this item in any lot!');
+                    return;
                 }
-                return prev.map(c => c.item._id === item._id ? { ...c, quantity: c.quantity + 1 } : c);
             }
-            if (item.currentStock < 1) {
-                toast.error('Out of stock!');
-                return prev;
+
+            setCart(prev => {
+                const existing = prev.find(c => c.item._id === item._id && c.batchNumber === selectedLot.batchNumber);
+                if (existing) {
+                    if (existing.quantity + 1 > selectedLot.quantity) {
+                        toast.error(`Only ${selectedLot.quantity} available in this lot!`);
+                        return prev;
+                    }
+                    return prev.map(c => (c.item._id === item._id && c.batchNumber === selectedLot.batchNumber) ? { ...c, quantity: c.quantity + 1 } : c);
+                }
+
+                const discount = item.fixedDiscount?.enabled ? item.fixedDiscount.percentage : 0;
+                return [...prev, {
+                    item,
+                    batchNumber: selectedLot.batchNumber,
+                    expiryDate: selectedLot.expiryDate,
+                    availableQty: selectedLot.quantity,
+                    quantity: 1,
+                    discount,
+                    variableDiscount: 0
+                }];
+            });
+
+            const isExpired = selectedLot.expiryDate && new Date(selectedLot.expiryDate) < new Date();
+            const isExpiringSoon = !isExpired && selectedLot.expiryDate && (new Date(selectedLot.expiryDate) - new Date()) < (15 * 24 * 60 * 60 * 1000);
+
+            if (isExpired) {
+                toast.error(`CRITICAL: Lot ${selectedLot.batchNumber} is EXPIRED! (${new Date(selectedLot.expiryDate).toLocaleDateString()})`, { duration: 5000 });
+            } else if (isExpiringSoon) {
+                toast(`Warning: This lot expires soon (${new Date(selectedLot.expiryDate).toLocaleDateString()})`, { icon: '⚠️', duration: 4000 });
             }
-            const discount = item.fixedDiscount?.enabled ? item.fixedDiscount.percentage : 0;
-            return [...prev, { item, quantity: 1, discount, variableDiscount: 0 }];
-        });
-        toast.success(`${item.itemName} added`, { duration: 1000 });
+
+            toast.success(`${item.itemName} (Lot: ${selectedLot.batchNumber}) added`, { duration: 1000 });
+        } catch (err) {
+            console.error('Add to cart failed', err);
+            toast.error('Failed to select lot');
+        }
     };
 
-    const updateQty = (itemId, delta) => {
+    const updateQty = (itemId, batchNumber, delta) => {
         setCart(prev => prev.map(c => {
-            if (c.item._id !== itemId) return c;
+            if (c.item._id !== itemId || c.batchNumber !== batchNumber) return c;
             const newQty = c.quantity + delta;
             if (newQty < 1) return c;
-            // Optimization: If editing, the current stock in the item object is AFTER the previous sale deduction.
-            // However, the backend PUT route reverts stock first, so we should be okay with basic check or fetching fresh stock.
-            // For now, let's keep it simple.
-            if (newQty > c.item.currentStock + (id ? cart.find(x => x.item._id === itemId)?.quantity || 0 : 0)) {
-                toast.error('Not enough stock!');
+
+            if (newQty > c.availableQty) {
+                toast.error('Not enough stock in this lot!');
                 return c;
             }
             return { ...c, quantity: newQty };
         }));
     };
 
-    const removeFromCart = (itemId) => setCart(prev => prev.filter(c => c.item._id !== itemId));
+    const removeFromCart = (itemId, batchNumber) => setCart(prev => prev.filter(c => !(c.item._id === itemId && c.batchNumber === batchNumber)));
 
     const calcItemTotal = (c) => {
         const gross = c.item.sellingPrice * c.quantity;
@@ -265,7 +300,8 @@ export default function POSTerminal() {
             const items = cart.map(c => ({
                 item: c.item._id,
                 quantity: c.quantity,
-                expiryDate: c.item.expiryDate
+                batchNumber: c.batchNumber,
+                expiryDate: c.expiryDate
             }));
             const salePayload = {
                 customer: customer.name ? customer : undefined,
@@ -367,20 +403,23 @@ export default function POSTerminal() {
                                     ) : cart.map(c => {
                                         const t = calcItemTotal(c);
                                         return (
-                                            <tr key={c.item._id}>
-                                                <td><strong>{c.item.itemName}</strong><br /><small style={{ color: 'var(--text-muted)' }}>{c.item.barcodeNumber}</small></td>
+                                            <tr key={`${c.item._id}_${c.batchNumber}`}>
+                                                <td>
+                                                    <strong>{c.item.itemName}</strong><br />
+                                                    <small style={{ color: 'var(--text-muted)' }}>Lot: {c.batchNumber} | Exp: {c.expiryDate ? new Date(c.expiryDate).toLocaleDateString() : 'No Exp'}</small>
+                                                </td>
                                                 <td>₹{c.item.sellingPrice}</td>
                                                 <td>
                                                     <div className="pos-cart-item-qty">
-                                                        <button onClick={() => updateQty(c.item._id, -1)}>−</button>
+                                                        <button onClick={() => updateQty(c.item._id, c.batchNumber, -1)}>−</button>
                                                         <span>{c.quantity}</span>
-                                                        <button onClick={() => updateQty(c.item._id, 1)}>+</button>
+                                                        <button onClick={() => updateQty(c.item._id, c.batchNumber, 1)}>+</button>
                                                     </div>
                                                 </td>
                                                 <td>{c.discount || 0}%</td>
                                                 <td>{c.item.gstPercentage}%</td>
                                                 <td><strong>₹{t.total.toFixed(2)}</strong></td>
-                                                <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => removeFromCart(c.item._id)}>×</button></td>
+                                                <td><button className="btn btn-danger btn-icon" style={{ padding: '2px 8px' }} onClick={() => removeFromCart(c.item._id, c.batchNumber)}>×</button></td>
                                             </tr>
                                         );
                                     })}
@@ -519,6 +558,53 @@ export default function POSTerminal() {
                             <div style={{ color: 'var(--accent)', fontWeight: 600 }}>
                                 {searchResults.length} items found
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Lot Selection Modal */}
+            {isLotModalOpen && (
+                <div className="search-modal-overlay" onClick={() => setIsLotModalOpen(false)}>
+                    <div className="search-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                        <div className="search-modal-header">
+                            <h3 style={{ margin: 0 }}>📦 Select Lot: {pendingItem?.itemName}</h3>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Multiple batches found. Please select which one to sell from.</p>
+                        </div>
+                        <div className="search-results-list">
+                            {availableLots.map((lot, index) => {
+                                const isExpiringSoon = lot.expiryDate && (new Date(lot.expiryDate) - new Date()) < (15 * 24 * 60 * 60 * 1000);
+                                const isExpired = lot.expiryDate && new Date(lot.expiryDate) < new Date();
+
+                                return (
+                                    <div
+                                        key={lot.batchNumber}
+                                        className="search-result-item"
+                                        onClick={() => {
+                                            addToCart(pendingItem, lot);
+                                            setIsLotModalOpen(false);
+                                        }}
+                                        style={{ borderLeft: isExpired ? '4px solid var(--danger)' : isExpiringSoon ? '4px solid var(--warning)' : 'none' }}
+                                    >
+                                        <div className="search-result-info">
+                                            <div className="search-result-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                Lot: {lot.batchNumber}
+                                                {isExpired ? <span className="badge badge-danger">Expired</span> : isExpiringSoon && <span className="badge badge-warning">Expiring Soon</span>}
+                                            </div>
+                                            <div className="search-result-meta">
+                                                <span>Stock: <strong>{lot.quantity}</strong></span>
+                                                <span>•</span>
+                                                <span>Expiry: {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString() : 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="search-result-price">
+                                            <button className="btn btn-primary btn-sm">Select</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="search-modal-footer">
+                            <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => setIsLotModalOpen(false)}>Cancel</button>
                         </div>
                     </div>
                 </div>

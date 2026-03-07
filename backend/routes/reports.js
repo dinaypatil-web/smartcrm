@@ -95,6 +95,22 @@ router.get('/dashboard', auth, async (req, res) => {
             .sort((a, b) => b.totalQuantity - a.totalQuantity)
             .slice(0, 10);
 
+        if (req.user.role === 'doctor') {
+            const todayAppointments = await AppointmentRepository.findAll();
+            const doctorAppointments = todayAppointments.filter(a => {
+                const d = normalizeDate(a, 'appointmentDate');
+                return d && d >= startOfDay && a.doctorId === req.user.id;
+            });
+
+            return res.json({
+                appointmentsBooked: doctorAppointments.length,
+                patientsAttended: doctorAppointments.filter(a => a.status === 'completed').length,
+                balanceAppointments: doctorAppointments.filter(a => a.status === 'pending').length,
+                totalItems,
+                lowStockCount
+            });
+        }
+
         res.json({
             todaySales,
             monthSales,
@@ -239,6 +255,7 @@ router.get('/stock', auth, rbac('developer', 'admin'), async (req, res) => {
             summaries.push({
                 item: {
                     id: item.id,
+                    _id: item.id,
                     itemName: item.itemName,
                     itemCode: item.itemCode,
                     barcodeNumber: item.barcodeNumber,

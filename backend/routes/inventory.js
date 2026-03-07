@@ -203,4 +203,35 @@ router.get('/valuation', auth, rbac('developer', 'admin'), async (req, res) => {
     }
 });
 
+// GET /api/inventory/batches/:itemId - Batches for specific item
+router.get('/batches/:itemId', auth, async (req, res) => {
+    try {
+        const allLedger = await InventoryLedgerRepository.findAll();
+        const itemLedger = allLedger.filter(l => l.item === req.params.itemId && l.batchNumber);
+
+        const batchStock = {}; // batchNumber -> { quantity, expiryDate }
+
+        itemLedger.forEach(entry => {
+            const b = entry.batchNumber;
+            if (!batchStock[b]) {
+                batchStock[b] = { batchNumber: b, quantity: 0, expiryDate: entry.expiryDate };
+            }
+            batchStock[b].quantity += entry.quantity;
+        });
+
+        // Filter for positive stock and sort by expiry
+        const batches = Object.values(batchStock)
+            .filter(b => b.quantity > 0)
+            .sort((a, b) => {
+                const dateA = a.expiryDate ? new Date(a.expiryDate) : new Date('9999-12-31');
+                const dateB = b.expiryDate ? new Date(b.expiryDate) : new Date('9999-12-31');
+                return dateA - dateB;
+            });
+
+        res.json(batches);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

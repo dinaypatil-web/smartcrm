@@ -38,19 +38,34 @@ export default function PrescriptionsList() {
         fetchData();
     }, []);
 
-    const fetchData = async () => {
+    const fetchData = async (query = '') => {
         try {
             setLoading(true);
             const today = new Date().toISOString().split('T')[0];
-            const { data } = await api.get(`/appointments?startDate=${today}&limit=50`);
+            let url = `/appointments?startDate=${today}&limit=50`;
+            if (query) {
+                url = `/appointments?patientName=${query}&limit=50`; // Search all dates if query
+            }
+            const { data } = await api.get(url);
             setAppointments(data.appointments);
             return data.appointments;
         } catch (err) {
-            toast.error('Failed to load appointments');
+            toast.error('Failed to load patients');
         } finally {
             setLoading(false);
         }
     };
+
+    const [items, setItems] = useState([]);
+    useEffect(() => {
+        const fetchItems = async () => {
+            try {
+                const { data } = await api.get('/items?limit=200');
+                setItems(data.items);
+            } catch (err) { console.error('Failed to load items'); }
+        };
+        fetchItems();
+    }, []);
 
     const [history, setHistory] = useState([]);
 
@@ -145,16 +160,16 @@ export default function PrescriptionsList() {
                 {/* Left Sidebar: Patient List */}
                 <div className="split-sidebar">
                     <div className="split-sidebar-header">
-                        <div style={{ position: 'relative' }}>
+                        <form onSubmit={e => { e.preventDefault(); fetchData(search); }} style={{ position: 'relative' }}>
                             <FiSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                             <input
                                 className="form-input"
-                                placeholder="Search patients..."
+                                placeholder="Search all patients..."
                                 style={{ paddingLeft: '32px', height: '36px' }}
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                             />
-                        </div>
+                        </form>
                     </div>
                     <div className="split-sidebar-content">
                         {filteredAppointments.length === 0 ? (
@@ -304,9 +319,29 @@ export default function PrescriptionsList() {
                                         <div key={i} className="form-row form-row-4" style={{ marginBottom: '12px', alignItems: 'end', background: 'var(--bg-hover)', padding: '12px', borderRadius: '8px' }}>
                                             <div className="form-group" style={{ marginBottom: 0 }}>
                                                 <label className="form-label">Medicine *</label>
-                                                <input className="form-input" value={med.medicineName} onChange={e => {
-                                                    const n = [...form.medicines]; n[i].medicineName = e.target.value; setForm({ ...form, medicines: n });
-                                                }} placeholder="e.g. Paracetamol" required />
+                                                <select
+                                                    className="form-input"
+                                                    value={med.itemRef || ''}
+                                                    onChange={e => {
+                                                        const item = items.find(it => it.id === e.target.value);
+                                                        const n = [...form.medicines];
+                                                        n[i].itemRef = e.target.value;
+                                                        n[i].medicineName = item ? item.itemName : '';
+                                                        n[i].currentStock = item ? item.currentStock : 0;
+                                                        setForm({ ...form, medicines: n });
+                                                    }}
+                                                    required
+                                                >
+                                                    <option value="">Select Medicine</option>
+                                                    {items.map(it => (
+                                                        <option key={it.id} value={it.id}>{it.itemName} (Stock: {it.currentStock})</option>
+                                                    ))}
+                                                </select>
+                                                {med.currentStock !== undefined && (
+                                                    <div style={{ fontSize: '10px', marginTop: '4px', color: med.currentStock > 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                                        Available: {med.currentStock}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="form-group" style={{ marginBottom: 0 }}>
                                                 <label className="form-label">Dosage</label>
